@@ -1,0 +1,7 @@
+{
+  "name": "MyShelf - Digital Bookshelf",
+  "description": "A camera-first mobile app that lets users build a digital replica of their physical book collection by scanning ISBN barcodes.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
