@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { fetchBookByISBN } from '../services/geminiService';
 import { Book } from '../types';
@@ -17,6 +18,7 @@ interface Toast {
   type: 'success' | 'error' | 'loading';
 }
 
+// Extend Window interface for the experimental BarcodeDetector API
 declare global {
   interface Window {
     BarcodeDetector: any;
@@ -27,12 +29,21 @@ type Barcode = {
     boundingBox: DOMRectReadOnly;
 };
 
+/**
+ * ScannerView Component
+ * 
+ * Handles the camera feed, barcode detection, and UI feedback.
+ * 1. Sets up the camera stream using navigator.mediaDevices.
+ * 2. Uses BarcodeDetector to find ISBN-13 codes in the video stream.
+ * 3. Draws bounding boxes on a canvas overlay.
+ * 4. Triggers the Gemini API call when a valid, new ISBN is found.
+ */
 const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingISBNs }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isScanning, setIsScanning] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const isProcessing = useRef(false);
+  const isProcessing = useRef(false); // Ref to prevent multiple API calls for the same detection frame
   const animationFrameId = useRef<number>();
 
   const addToast = (message: string, type: 'success' | 'error' | 'loading') => {
@@ -72,9 +83,10 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
       console.error(error);
       addToast(`Error processing ISBN: ${barcode}`, 'error');
     } finally {
+        // Add a cooldown to prevent immediate re-scanning
         setTimeout(() => {
             isProcessing.current = false;
-        }, 2000); // Increased delay to prevent immediate re-scans of the same book
+        }, 2000); 
     }
   }, [existingISBNs, onAddBook]);
   
@@ -82,6 +94,10 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
     let stream: MediaStream | null = null;
     const barcodeDetector = 'BarcodeDetector' in window ? new window.BarcodeDetector({ formats: ['ean_13'] }) : null;
 
+    /**
+     * Main animation loop.
+     * Detects barcodes in the video frame and draws them on the canvas.
+     */
     const detectAndDraw = async () => {
         const video = videoRef.current;
         const canvas = canvasRef.current;
@@ -93,9 +109,11 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
         
+        // Sync canvas size with video size
         canvas.width = video.clientWidth;
         canvas.height = video.clientHeight;
 
+        // Calculate scaling factors (video native res vs display size)
         const scaleX = canvas.width / video.videoWidth;
         const scaleY = canvas.height / video.videoHeight;
         
@@ -109,8 +127,9 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
                 const isKnown = existingISBNs.includes(barcode.rawValue);
                 const isValid = isValidISBN(barcode.rawValue);
                 
+                // Visual Feedback: Green (Existing), Amber (New Valid), Red (Invalid)
                 ctx.lineWidth = 4;
-                ctx.strokeStyle = isValid ? (isKnown ? '#34D399' : '#E8A04C') : '#EF4444'; // Green for known, Amber for valid, Red for invalid
+                ctx.strokeStyle = isValid ? (isKnown ? '#34D399' : '#E8A04C') : '#EF4444'; 
                 ctx.strokeRect(x * scaleX, y * scaleY, width * scaleX, height * scaleY);
 
                 if (isValid) {

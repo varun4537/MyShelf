@@ -1,5 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 
+/**
+ * A custom hook for persistent state using localStorage.
+ * 
+ * Includes listener logic to sync state across different browser tabs/windows.
+ * If the LocalStorage is updated in another tab, this hook triggers a re-render
+ * in the current tab with the new value.
+ */
 function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {

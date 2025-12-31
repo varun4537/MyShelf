@@ -8,10 +8,21 @@ import LibraryView from './components/LibraryView';
 
 type View = 'splash' | 'scanner' | 'library';
 
+/**
+ * Main Application Component
+ * 
+ * Orchestrates the primary view navigation (Splash -> Scanner -> Library) and
+ * manages the global state of the book collection using LocalStorage.
+ */
 const App: React.FC = () => {
   const [view, setView] = useState<View>('splash');
+  // Persist books to localStorage to maintain the library across sessions
   const [books, setBooks] = useLocalStorage<Book[]>('my-shelf-books', []);
 
+  /**
+   * Adds a new book to the collection.
+   * Prevents duplicates based on ISBN.
+   */
   const addBook = useCallback((newBook: Book) => {
     setBooks(prevBooks => {
       // Avoid duplicates

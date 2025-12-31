@@ -20,6 +20,10 @@ interface LibraryViewProps {
 type ViewMode = 'grid' | 'list';
 type SortKey = 'dateAdded' | 'title' | 'author';
 
+/**
+ * LibraryView Component
+ * Displays the collection of books with options to search, sort, and switch view modes.
+ */
 const LibraryView: React.FC<LibraryViewProps> = ({ books, onScanMore, onDeleteBook, onUpdateBook }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchTerm, setSearchTerm] = useState('');
@@ -27,6 +31,11 @@ const LibraryView: React.FC<LibraryViewProps> = ({ books, onScanMore, onDeleteBo
   const [sortAsc, setSortAsc] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
 
+  /**
+   * Memosized filtered and sorted list of books.
+   * Handles text search against Title and Authors.
+   * Handles sorting by Date, Title, or Author.
+   */
   const filteredAndSortedBooks = useMemo(() => {
     const filtered = books.filter(book =>
       book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||

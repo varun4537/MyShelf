@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Book } from '../types';
 
@@ -5,6 +6,10 @@ import { Book } from '../types';
 // and assume it is always available.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+/**
+ * Schema definition for the Gemini API response.
+ * This ensures the LLM returns data in a strict JSON structure matching our Book type.
+ */
 const bookSchema = {
   type: Type.OBJECT,
   properties: {
@@ -19,11 +24,18 @@ const bookSchema = {
 };
 
 
+/**
+ * Fetches book metadata from Google Gemini based on an ISBN.
+ * 
+ * @param isbn - The ISBN-13 string scanned from the barcode.
+ * @returns A Promise resolving to a Book object or null if failed.
+ */
 export const fetchBookByISBN = async (isbn: string): Promise<Book | null> => {
   // Fix: Per coding guidelines, remove mock data logic and assume API key is always present.
   try {
     const prompt = `Find book details for ISBN: ${isbn}. Provide the information in JSON format.`;
     
+    // We use gemini-2.5-flash for low latency and efficiency on simple text tasks
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
