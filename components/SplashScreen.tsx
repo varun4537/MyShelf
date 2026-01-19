@@ -8,17 +8,17 @@ interface SplashScreenProps {
 
 const SplashScreen: React.FC<SplashScreenProps> = ({ onStart }) => {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center" style={{ background: 'var(--color-bg)' }}>
       <div className="mb-8">
-        <BookIcon className="w-24 h-24 text-[#E8A04C]" />
+        <BookIcon className="w-24 h-24" style={{ color: 'var(--color-primary)' }} />
       </div>
-      <h1 className="text-5xl font-bold text-white mb-2">MyShelf</h1>
-      <p className="text-lg text-gray-400 mb-12 max-w-sm">
+      <h1 className="text-5xl font-bold mb-2" style={{ color: 'var(--color-text)' }}>MyShelf</h1>
+      <p className="text-lg mb-12 max-w-sm" style={{ color: 'var(--color-text-secondary)' }}>
         Build a digital replica of your physical book collection, one scan at a time.
       </p>
       <button
         onClick={onStart}
-        className="px-8 py-4 bg-[#E8A04C] text-[#0D0D0F] font-semibold rounded-full text-lg shadow-lg shadow-[#E8A04C]/20 transition-all duration-300 ease-in-out hover:bg-amber-400 hover:shadow-xl hover:shadow-[#E8A04C]/40 transform hover:-translate-y-1"
+        className="px-8 py-4 btn-primary font-semibold rounded-full text-lg transition-all duration-300 ease-in-out transform hover:-translate-y-1"
       >
         Start Scanning
       </button>

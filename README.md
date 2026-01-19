@@ -1,42 +1,120 @@
 # MyShelf - Digital Bookshelf
 
-MyShelf is a camera-first web application designed to help users build a digital replica of their physical book collection. By utilizing the device's camera to scan ISBN barcodes, the app instantly fetches book metadata using Google's Gemini API and stores the collection locally on the device.
+MyShelf is a mobile-first web app for building a digital replica of your physical book collection. Scan ISBN barcodes or add books manually, track your reading progress, and view statistics about your library.
 
 ## 🌟 Features
 
-*   **Barcode Scanning**: Real-time ISBN-13 detection using the native `BarcodeDetector` API.
-*   **AI-Powered Metadata**: Uses Google's **Gemini 2.5 Flash** model to intelligently retrieve book details (Title, Author, Cover, Description, Genre, Page Count) based on the ISBN.
-*   **Local Persistence**: Your library is stored in the browser's `localStorage`, ensuring data privacy and offline access to your list.
-*   **Library Management**:
-    *   **Grid & List Views**: Toggle between visual grid layouts and detailed lists.
-    *   **Search & Sort**: Filter by title/author and sort by date added, title, or author.
-    *   **Edit & Delete**: Manually correct AI-generated data or remove books.
-*   **Data Export**: Export your entire collection to **JSON** or **CSV** for backup or use in spreadsheet software.
+### 📷 Barcode Scanning
+- Fast 15 FPS scanning with `html5-qrcode`
+- Haptic feedback on successful scan
+- Batch scanning with minimal cooldown
+
+### 📚 Library Management
+- **Grid & List Views** - Toggle between visual layouts
+- **Reading Status** - Track Unread, Reading, Read, Wishlist
+- **Ratings** - 5-star rating system
+- **Notes** - Personal notes for each book
+- **Favorites** - Mark your favorite books
+- **Search & Filter** - Filter by status, search by title/author
+- **Sort** - By date added, title, author, or rating
+
+### ✏️ Manual Entry
+- Add books without scanning via ISBN search or manual form
+- Supports books without barcodes
+
+### 📊 Statistics Dashboard
+- Reading progress percentage
+- Books by genre breakdown
+- Top authors
+- Rating distribution
+
+### 🎨 Theming
+- **Teal** color scheme
+- Dark mode (default) & Light mode
+- Glassmorphic UI elements
+- System preference detection
+
+### ⚙️ Settings
+- Theme toggle
+- Export library as JSON/CSV
+- Import from backup
+- Clear all data
+
+### 🔐 Security
+- API keys are **server-side only** (Vercel serverless)
+- Book lookups go through `/api/book` endpoint
+- No sensitive data in client bundle
 
 ## 🛠️ Tech Stack
 
-*   **Frontend**: React 19, TypeScript, Tailwind CSS.
-*   **AI Integration**: Google GenAI SDK (`@google/genai`).
-*   **Browser APIs**:
-    *   `MediaDevices` (Camera access).
-    *   `BarcodeDetector` (Shape detection).
-    *   `LocalStorage` (Persistence).
-    *   `Canvas API` (Visual overlays).
+- **Frontend**: React 19, TypeScript, Vite
+- **Styling**: Tailwind CSS + CSS Variables
+- **Scanner**: `html5-qrcode`
+- **API**: Open Library (primary), OpenRouter LLM (fallback)
+- **Backend**: Vercel Serverless Functions
+- **Storage**: Browser localStorage
 
-## 🚀 How It Works
+## 🚀 Getting Started
 
-1.  **Splash Screen**: The entry point inviting the user to start.
-2.  **Scanner View**:
-    *   Accesses the rear camera.
-    *   Analyzes the video feed for EAN-13 barcodes.
-    *   Validates the check digit of the ISBN.
-    *   Queries the Gemini API with a structured prompt to get JSON data.
-3.  **Library View**:
-    *   Displays the scanned books.
-    *   Allows management and exporting of data.
+### Prerequisites
+- Node.js 20+
+- OpenRouter API key (for LLM fallback)
+
+### Local Development
+
+```bash
+# Install dependencies
+npm install
+
+# Create .env file
+cp .env.example .env
+# Add your OPENROUTER_API_KEY
+
+# Start dev server
+npm run dev
+
+# For API testing, run Vercel dev
+npx vercel dev
+```
+
+### Deployment
+
+```bash
+# Build
+npm run build
+
+# Deploy to Vercel
+npx vercel --prod
+```
+
+**Important:** Add `OPENROUTER_API_KEY` to Vercel Environment Variables.
 
 ## 📋 Requirements
 
-*   A modern browser with support for the `BarcodeDetector` interface (Chrome/Edge/Android Webview).
-*   A valid Google GenAI API Key configured in the environment.
-*   HTTPS context (required for Camera access).
+- Modern browser (Chrome/Edge/Safari)
+- HTTPS (required for camera access)
+- Camera permissions
+
+## 📁 Project Structure
+
+```
+├── api/                 # Vercel serverless functions
+│   └── book.ts          # Book lookup API (secure)
+├── components/          # React components
+├── contexts/            # React contexts (Theme)
+├── hooks/               # Custom hooks
+├── services/            # API services
+├── styles/              # CSS (theme variables)
+└── utils/               # Utilities (export, ISBN)
+```
+
+## 🔮 Future Plans
+
+- [ ] Firebase Auth (Google + Email/Password)
+- [ ] Real-time cloud sync
+- [ ] Collections (custom book groups)
+- [ ] Payment integration
+
+## 📄 License
+
+MIT

@@ -1,75 +1,99 @@
-
-import React, { useState } from 'react';
-import { Book } from '../types';
-import { EditIcon } from './icons/EditIcon';
-import { TrashIcon } from './icons/TrashIcon';
+import React from 'react';
+import { Book, ReadingStatus } from '../types';
 
 interface BookCardProps {
   book: Book;
   onDelete: (isbn: string) => void;
   onUpdate: (book: Book) => void;
+  onClick: () => void;
 }
 
-const EditModal: React.FC<{ book: Book; onSave: (book: Book) => void; onClose: () => void }> = ({ book, onSave, onClose }) => {
-    const [editedBook, setEditedBook] = useState(book);
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        if (name === 'authors' || name === 'genre') {
-            setEditedBook({ ...editedBook, [name]: value.split(',').map(item => item.trim()) });
-        } else {
-            setEditedBook({ ...editedBook, [name]: value });
-        }
-    };
-    
-    return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="bg-[#1a1a1c] border border-white/20 rounded-2xl p-6 w-full max-w-lg shadow-xl" onClick={e => e.stopPropagation()}>
-                <h2 className="text-xl font-bold mb-4">Edit Book</h2>
-                <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-                    <input name="title" value={editedBook.title} onChange={handleChange} placeholder="Title" className="w-full bg-white/10 p-2 rounded-md" />
-                    <input name="authors" value={editedBook.authors.join(', ')} onChange={handleChange} placeholder="Authors (comma-separated)" className="w-full bg-white/10 p-2 rounded-md" />
-                    <input name="genre" value={editedBook.genre.join(', ')} onChange={handleChange} placeholder="Genres (comma-separated)" className="w-full bg-white/10 p-2 rounded-md" />
-                    <textarea name="description" value={editedBook.description} onChange={handleChange} placeholder="Description" className="w-full bg-white/10 p-2 rounded-md h-24" />
-                    <input name="coverUrl" value={editedBook.coverUrl} onChange={handleChange} placeholder="Cover Image URL" className="w-full bg-white/10 p-2 rounded-md" />
-                </div>
-                <div className="flex justify-end gap-4 mt-6">
-                    <button onClick={onClose} className="px-4 py-2 bg-white/10 rounded-md">Cancel</button>
-                    <button onClick={() => { onSave(editedBook); onClose(); }} className="px-4 py-2 bg-[#E8A04C] text-black rounded-md font-semibold">Save</button>
-                </div>
-            </div>
-        </div>
-    );
+const STATUS_EMOJI: Record<ReadingStatus, string> = {
+  unread: '📚',
+  reading: '📖',
+  read: '✅',
+  wishlist: '🎁',
 };
 
+const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate, onClick }) => {
+  const [imageError, setImageError] = React.useState(false);
 
-const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onUpdate({ ...book, favorite: !book.favorite });
+  };
 
   return (
-    <>
-    <div 
-        className="relative group aspect-[2/3] overflow-hidden rounded-2xl transition-all duration-300 transform hover:-translate-y-2"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+    <div
+      className="group cursor-pointer"
+      onClick={onClick}
     >
-      <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" />
-      <div 
-        className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
+      {/* Card Container with shadow */}
+      <div
+        className="relative aspect-[2/3] rounded-xl overflow-hidden transition-all duration-300 transform group-hover:-translate-y-1"
+        style={{
+          boxShadow: 'var(--shadow-md)',
+          border: '1px solid var(--color-border)'
+        }}
       >
-        <div className="absolute bottom-0 left-0 p-3 w-full">
-            <h3 className="font-bold text-white text-sm truncate">{book.title}</h3>
-            <p className="text-xs text-gray-300 truncate">{book.authors.join(', ')}</p>
+        {/* Cover Image */}
+        <img
+          src={imageError ? 'https://via.placeholder.com/200x300/1a1a1c/666?text=No+Cover' : book.coverUrl}
+          alt={book.title}
+          className="w-full h-full object-cover"
+          onError={() => setImageError(true)}
+        />
+
+        {/* Status Badge - Top Left */}
+        <div className="absolute top-2 left-2 glass px-2 py-1 rounded-lg text-sm">
+          {STATUS_EMOJI[book.readingStatus]}
         </div>
-        <div className="absolute top-2 right-2 flex flex-col gap-2">
-            <button onClick={() => setIsModalOpen(true)} className="p-2 bg-black/50 rounded-full hover:bg-[#E8A04C] text-white transition"><EditIcon className="w-4 h-4" /></button>
-            <button onClick={() => onDelete(book.isbn)} className="p-2 bg-black/50 rounded-full hover:bg-red-500 text-white transition"><TrashIcon className="w-4 h-4" /></button>
-        </div>
+
+        {/* Favorite Badge - Top Right */}
+        {book.favorite && (
+          <div className="absolute top-2 right-2 text-lg drop-shadow-lg">
+            ❤️
+          </div>
+        )}
+
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300" />
+
+        {/* Quick Favorite Button on Hover */}
+        <button
+          onClick={handleFavoriteClick}
+          className="absolute bottom-3 right-3 w-8 h-8 glass rounded-full flex items-center justify-center opacity-0 sm:group-hover:opacity-100 transition-all duration-300 hover:scale-110"
+        >
+          {book.favorite ? '❤️' : '🤍'}
+        </button>
+      </div>
+
+      {/* Book Info - Below card */}
+      <div className="mt-3 px-1">
+        {/* Rating Stars */}
+        {book.rating ? (
+          <div className="flex items-center gap-0.5 mb-1">
+            {[1, 2, 3, 4, 5].map(star => (
+              <span key={star} className="text-xs">
+                {star <= book.rating! ? '⭐' : '☆'}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="h-4 mb-1" />
+        )}
+
+        {/* Title */}
+        <h3 className="font-semibold text-sm leading-tight line-clamp-2" style={{ color: 'var(--color-text)' }}>
+          {book.title}
+        </h3>
+
+        {/* Author */}
+        <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--color-text-secondary)' }}>
+          {book.authors.join(', ')}
+        </p>
       </div>
     </div>
-    {isModalOpen && <EditModal book={book} onSave={onUpdate} onClose={() => setIsModalOpen(false)} />}
-    </>
   );
 };
 

@@ -1,18 +1,29 @@
 
 import React, { useState, useEffect } from 'react';
+import { migrateBook, Book } from '../types';
 
 /**
  * A custom hook for persistent state using localStorage.
  * 
  * Includes listener logic to sync state across different browser tabs/windows.
- * If the LocalStorage is updated in another tab, this hook triggers a re-render
- * in the current tab with the new value.
+ * For Book arrays, automatically migrates old data to V2 format.
  */
 function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {
       const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
+      if (!item) return initialValue;
+
+      let parsed = JSON.parse(item);
+
+      // Auto-migrate books to V2 format if this is the books array
+      if (key === 'my-shelf-books' && Array.isArray(parsed)) {
+        parsed = parsed.map(migrateBook);
+        // Save migrated data back
+        window.localStorage.setItem(key, JSON.stringify(parsed));
+      }
+
+      return parsed;
     } catch (error) {
       console.error(error);
       return initialValue;
@@ -28,16 +39,21 @@ function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dispatch<R
       console.error(error);
     }
   };
-  
+
   // This effect ensures that if localStorage is updated in another tab,
   // this hook's state reflects that change.
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === key) {
         try {
-          setStoredValue(e.newValue ? JSON.parse(e.newValue) : initialValue);
-        } catch(error) {
-            console.error(error);
+          let parsed = e.newValue ? JSON.parse(e.newValue) : initialValue;
+          // Auto-migrate if books
+          if (key === 'my-shelf-books' && Array.isArray(parsed)) {
+            parsed = parsed.map(migrateBook);
+          }
+          setStoredValue(parsed);
+        } catch (error) {
+          console.error(error);
         }
       }
     };
@@ -46,7 +62,7 @@ function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dispatch<R
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
   return [storedValue, setValue];

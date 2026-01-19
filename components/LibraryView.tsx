@@ -1,153 +1,367 @@
-
 import React, { useState, useMemo } from 'react';
-import { Book } from '../types';
-import { exportToCSV, exportToJSON } from '../utils/export';
+import { Book, ReadingStatus } from '../types';
 import { GridIcon } from './icons/GridIcon';
 import { ListIcon } from './icons/ListIcon';
 import { SearchIcon } from './icons/SearchIcon';
 import { PlusIcon } from './icons/PlusIcon';
 import BookCard from './BookCard';
 import BookListItem from './BookListItem';
-import { SortIcon } from './icons/SortIcon';
+import BookDetailsModal from './BookDetailsModal';
+import ManualEntryModal from './ManualEntryModal';
 
 interface LibraryViewProps {
   books: Book[];
   onScanMore: () => void;
   onDeleteBook: (isbn: string) => void;
   onUpdateBook: (book: Book) => void;
+  onOpenSettings: () => void;
+  onAddBook: (book: Book) => void;
+  onOpenStats: () => void;
 }
 
 type ViewMode = 'grid' | 'list';
-type SortKey = 'dateAdded' | 'title' | 'author';
+type SortKey = 'dateAdded' | 'title' | 'author' | 'rating';
 
-/**
- * LibraryView Component
- * Displays the collection of books with options to search, sort, and switch view modes.
- */
-const LibraryView: React.FC<LibraryViewProps> = ({ books, onScanMore, onDeleteBook, onUpdateBook }) => {
+const FILTER_OPTIONS: { value: ReadingStatus | 'all' | 'favorites'; label: string; emoji: string }[] = [
+  { value: 'all', label: 'All', emoji: '📚' },
+  { value: 'reading', label: 'Reading', emoji: '📖' },
+  { value: 'unread', label: 'Unread', emoji: '📕' },
+  { value: 'read', label: 'Read', emoji: '✅' },
+  { value: 'favorites', label: 'Favorites', emoji: '❤️' },
+];
+
+const LibraryView: React.FC<LibraryViewProps> = ({
+  books,
+  onScanMore,
+  onDeleteBook,
+  onUpdateBook,
+  onOpenSettings,
+  onAddBook,
+  onOpenStats
+}) => {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('dateAdded');
   const [sortAsc, setSortAsc] = useState(false);
-  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<ReadingStatus | 'all' | 'favorites'>('all');
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [showFabMenu, setShowFabMenu] = useState(false);
+  const [showManualEntry, setShowManualEntry] = useState(false);
 
-  /**
-   * Memosized filtered and sorted list of books.
-   * Handles text search against Title and Authors.
-   * Handles sorting by Date, Title, or Author.
-   */
+  // Stats
+  const stats = useMemo(() => ({
+    total: books.length,
+    reading: books.filter(b => b.readingStatus === 'reading').length,
+    read: books.filter(b => b.readingStatus === 'read').length,
+  }), [books]);
+
+  // Get filter counts
+  const filterCounts = useMemo(() => ({
+    all: books.length,
+    reading: books.filter(b => b.readingStatus === 'reading').length,
+    unread: books.filter(b => b.readingStatus === 'unread').length,
+    read: books.filter(b => b.readingStatus === 'read').length,
+    favorites: books.filter(b => b.favorite).length,
+  }), [books]);
+
+  // Filtered and sorted books
   const filteredAndSortedBooks = useMemo(() => {
-    const filtered = books.filter(book =>
-      book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      book.authors.some(author => author.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    let filtered = books;
+
+    if (statusFilter === 'favorites') {
+      filtered = filtered.filter(book => book.favorite);
+    } else if (statusFilter !== 'all') {
+      filtered = filtered.filter(book => book.readingStatus === statusFilter);
+    }
+
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(book =>
+        book.title.toLowerCase().includes(term) ||
+        book.authors.some(author => author.toLowerCase().includes(term))
+      );
+    }
 
     return filtered.sort((a, b) => {
       let compareA: string | number;
       let compareB: string | number;
 
-      if (sortKey === 'author') {
-        compareA = a.authors[0] || '';
-        compareB = b.authors[0] || '';
-      } else if (sortKey === 'title') {
-        compareA = a.title;
-        compareB = b.title;
-      } else { // dateAdded
-        compareA = new Date(a.dateAdded).getTime();
-        compareB = new Date(b.dateAdded).getTime();
+      switch (sortKey) {
+        case 'author':
+          compareA = a.authors[0] || '';
+          compareB = b.authors[0] || '';
+          break;
+        case 'title':
+          compareA = a.title;
+          compareB = b.title;
+          break;
+        case 'rating':
+          compareA = a.rating || 0;
+          compareB = b.rating || 0;
+          break;
+        default:
+          compareA = new Date(a.dateAdded).getTime();
+          compareB = new Date(b.dateAdded).getTime();
       }
-      
+
       if (compareA < compareB) return sortAsc ? -1 : 1;
       if (compareA > compareB) return sortAsc ? 1 : -1;
       return 0;
     });
-  }, [books, searchTerm, sortKey, sortAsc]);
-  
+  }, [books, searchTerm, sortKey, sortAsc, statusFilter]);
+
   const handleSortChange = (key: SortKey) => {
     if (key === sortKey) {
       setSortAsc(!sortAsc);
     } else {
       setSortKey(key);
-      setSortAsc(key === 'title' || key === 'author'); // Default ASC for text, DESC for date
+      setSortAsc(key === 'title' || key === 'author');
     }
   };
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 md:p-8">
-      <header className="sticky top-4 z-10 bg-[#0d0d0f]/50 backdrop-blur-xl p-4 rounded-2xl border border-white/10 mb-6">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <h1 className="text-3xl font-bold">MyShelf</h1>
-          <div className="relative w-full sm:w-auto">
-            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search title or author..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="w-full bg-white/10 border border-white/15 rounded-full py-2.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-[#E8A04C]"
-            />
-          </div>
-        </div>
-        <div className="flex items-center justify-between mt-4 gap-4">
+    <div className="min-h-screen pb-32" style={{ background: 'var(--color-bg)' }}>
+      {/* Compact Header */}
+      <header className="sticky top-0 z-20 backdrop-blur-xl border-b"
+        style={{
+          background: 'var(--color-bg)',
+          borderColor: 'var(--color-border)'
+        }}>
+        <div className="px-4 pt-6 pb-4">
+          {/* Title & Stats Row */}
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>MyShelf</h1>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                {stats.total} books • {stats.read} read • {stats.reading} reading
+              </p>
+            </div>
             <div className="flex items-center gap-2">
-                <button onClick={() => handleSortChange('dateAdded')} className={`px-3 py-1 text-sm rounded-full transition ${sortKey === 'dateAdded' ? 'bg-[#E8A04C] text-black' : 'bg-white/10'}`}><SortIcon className="inline w-4 h-4 mr-1"/> Date</button>
-                <button onClick={() => handleSortChange('title')} className={`px-3 py-1 text-sm rounded-full transition ${sortKey === 'title' ? 'bg-[#E8A04C] text-black' : 'bg-white/10'}`}><SortIcon className="inline w-4 h-4 mr-1"/> Title</button>
-                <button onClick={() => handleSortChange('author')} className={`px-3 py-1 text-sm rounded-full transition ${sortKey === 'author' ? 'bg-[#E8A04C] text-black' : 'bg-white/10'}`}><SortIcon className="inline w-4 h-4 mr-1"/> Author</button>
-            </div>
-            <div className="flex items-center bg-white/10 rounded-full p-1">
-                <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-full ${viewMode === 'grid' ? 'bg-[#E8A04C]' : ''}`}>
-                    <GridIcon className={`w-5 h-5 ${viewMode === 'grid' ? 'text-black' : 'text-gray-300'}`} />
+              {/* Stats */}
+              <button
+                onClick={onOpenStats}
+                className="w-10 h-10 glass-button rounded-full flex items-center justify-center"
+              >
+                <span className="text-lg">📊</span>
+              </button>
+              {/* Settings */}
+              <button
+                onClick={onOpenSettings}
+                className="w-10 h-10 glass-button rounded-full flex items-center justify-center"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--color-text-secondary)' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+              {/* Search Toggle */}
+              <button
+                onClick={() => setShowSearch(!showSearch)}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${showSearch ? 'btn-primary' : 'glass-button'
+                  }`}
+              >
+                <SearchIcon className="w-5 h-5" style={{ color: showSearch ? 'white' : 'var(--color-text-secondary)' }} />
+              </button>
+              {/* View Toggle */}
+              <div className="flex items-center glass rounded-full p-1">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-1.5 rounded-full transition ${viewMode === 'grid' ? 'btn-primary' : ''}`}
+                >
+                  <GridIcon className="w-4 h-4" style={{ color: viewMode === 'grid' ? 'white' : 'var(--color-text-secondary)' }} />
                 </button>
-                <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-full ${viewMode === 'list' ? 'bg-[#E8A04C]' : ''}`}>
-                    <ListIcon className={`w-5 h-5 ${viewMode === 'list' ? 'text-black' : 'text-gray-300'}`} />
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-1.5 rounded-full transition ${viewMode === 'list' ? 'btn-primary' : ''}`}
+                >
+                  <ListIcon className="w-4 h-4" style={{ color: viewMode === 'list' ? 'white' : 'var(--color-text-secondary)' }} />
                 </button>
+              </div>
             </div>
+          </div>
+
+          {/* Search Bar - Collapsible */}
+          {showSearch && (
+            <div className="mb-4 animate-slide-down">
+              <input
+                type="text"
+                placeholder="Search by title or author..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                autoFocus
+                className="w-full glass rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                style={{ color: 'var(--color-text)' }}
+              />
+            </div>
+          )}
+
+          {/* Filter Pills - Horizontal Scroll */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-4 px-4">
+            {FILTER_OPTIONS.map(opt => {
+              const count = filterCounts[opt.value as keyof typeof filterCounts] || 0;
+              const isActive = statusFilter === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => setStatusFilter(opt.value)}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${isActive ? 'btn-primary' : 'glass-button'
+                    }`}
+                  style={{ color: isActive ? 'white' : 'var(--color-text)' }}
+                >
+                  <span>{opt.emoji}</span>
+                  <span>{opt.label}</span>
+                  <span style={{ opacity: 0.7 }}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Sort Pills */}
+          <div className="flex items-center gap-2 mt-3 overflow-x-auto scrollbar-hide -mx-4 px-4">
+            <span className="text-xs flex-shrink-0" style={{ color: 'var(--color-text-muted)' }}>Sort:</span>
+            {(['dateAdded', 'title', 'author', 'rating'] as SortKey[]).map(key => (
+              <button
+                key={key}
+                onClick={() => handleSortChange(key)}
+                className={`px-3 py-1 text-xs rounded-full transition whitespace-nowrap ${sortKey === key ? 'glass' : ''
+                  }`}
+                style={{
+                  color: sortKey === key ? 'var(--color-text)' : 'var(--color-text-muted)'
+                }}
+              >
+                {key === 'dateAdded' ? 'Recent' : key.charAt(0).toUpperCase() + key.slice(1)}
+                {sortKey === key && (sortAsc ? ' ↑' : ' ↓')}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
-      
-      {filteredAndSortedBooks.length > 0 ? (
-        viewMode === 'grid' ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {filteredAndSortedBooks.map(book => <BookCard key={book.isbn} book={book} onDelete={onDeleteBook} onUpdate={onUpdateBook} />)}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredAndSortedBooks.map(book => <BookListItem key={book.isbn} book={book} onDelete={onDeleteBook} onUpdate={onUpdateBook} />)}
-          </div>
-        )
-      ) : (
-         <div className="text-center py-20">
-            <h2 className="text-2xl font-semibold text-white">Your Shelf is Empty</h2>
-            <p className="text-gray-400 mt-2">Start scanning books to build your digital library.</p>
-         </div>
-      )}
 
-      {/* FABs */}
-      <div className="fixed bottom-6 right-6 flex flex-col items-center gap-4">
-         <div className="relative">
-             <button
-                onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                className="w-14 h-14 bg-white/10 backdrop-blur-lg border border-white/20 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-white/20 transition"
-                aria-label="Export options"
-             >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-             </button>
-             {isExportMenuOpen && (
-                <div className="absolute bottom-16 right-0 w-32 bg-[#1a1a1c] border border-white/20 rounded-lg shadow-xl py-1 animate-fade-in-up-fast">
-                    <button onClick={() => { exportToJSON(books); setIsExportMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-white hover:bg-[#E8A04C]/20">Export JSON</button>
-                    <button onClick={() => { exportToCSV(books); setIsExportMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-white hover:bg-[#E8A04C]/20">Export CSV</button>
-                </div>
-             )}
-         </div>
-         <button
-            onClick={onScanMore}
-            className="w-16 h-16 bg-[#E8A04C] text-[#0D0D0F] rounded-full flex items-center justify-center shadow-lg shadow-[#E8A04C]/30 hover:scale-105 transition transform"
-            aria-label="Scan more books"
-         >
-            <PlusIcon className="w-8 h-8" />
-         </button>
+      {/* Book Grid/List */}
+      <main className="px-4 pt-6">
+        {filteredAndSortedBooks.length > 0 ? (
+          viewMode === 'grid' ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {filteredAndSortedBooks.map(book => (
+                <BookCard
+                  key={book.isbn}
+                  book={book}
+                  onDelete={onDeleteBook}
+                  onUpdate={onUpdateBook}
+                  onClick={() => setSelectedBook(book)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredAndSortedBooks.map(book => (
+                <BookListItem
+                  key={book.isbn}
+                  book={book}
+                  onDelete={onDeleteBook}
+                  onUpdate={onUpdateBook}
+                  onClick={() => setSelectedBook(book)}
+                />
+              ))}
+            </div>
+          )
+        ) : (
+          <div className="text-center py-20">
+            <div className="text-6xl mb-4">📚</div>
+            <h2 className="text-xl font-semibold" style={{ color: 'var(--color-text)' }}>
+              {books.length === 0 ? 'Your Shelf is Empty' : 'No Books Found'}
+            </h2>
+            <p className="mt-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+              {books.length === 0
+                ? 'Scan a barcode or add books manually'
+                : 'Try adjusting your filters'}
+            </p>
+            {books.length === 0 && (
+              <div className="flex justify-center gap-3 mt-6">
+                <button
+                  onClick={onScanMore}
+                  className="px-6 py-3 btn-primary rounded-full font-semibold"
+                >
+                  📷 Scan Barcode
+                </button>
+                <button
+                  onClick={() => setShowManualEntry(true)}
+                  className="px-6 py-3 glass-button rounded-full font-semibold"
+                  style={{ color: 'var(--color-text)' }}
+                >
+                  ✏️ Add Manually
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* FAB with Menu */}
+      <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3">
+        {/* FAB Menu */}
+        {showFabMenu && (
+          <div className="flex flex-col gap-2 mb-2 animate-slide-up">
+            <button
+              onClick={() => { setShowManualEntry(true); setShowFabMenu(false); }}
+              className="flex items-center gap-3 px-4 py-3 glass rounded-full shadow-lg"
+              style={{ color: 'var(--color-text)' }}
+            >
+              <span>✏️</span>
+              <span className="text-sm font-medium">Add Manually</span>
+            </button>
+            <button
+              onClick={() => { onScanMore(); setShowFabMenu(false); }}
+              className="flex items-center gap-3 px-4 py-3 glass rounded-full shadow-lg"
+              style={{ color: 'var(--color-text)' }}
+            >
+              <span>📷</span>
+              <span className="text-sm font-medium">Scan Barcode</span>
+            </button>
+          </div>
+        )}
+
+        {/* Main FAB */}
+        <button
+          onClick={() => setShowFabMenu(!showFabMenu)}
+          className={`w-14 h-14 btn-primary rounded-full flex items-center justify-center transition-all ${showFabMenu ? 'rotate-45' : ''
+            }`}
+          aria-label="Add book"
+        >
+          <PlusIcon className="w-7 h-7" />
+        </button>
       </div>
 
+      {/* Backdrop when FAB menu is open */}
+      {showFabMenu && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setShowFabMenu(false)}
+        />
+      )}
+
+      {/* Book Details Modal */}
+      {selectedBook && (
+        <BookDetailsModal
+          book={selectedBook}
+          isOpen={!!selectedBook}
+          onClose={() => setSelectedBook(null)}
+          onUpdate={(updated) => {
+            onUpdateBook(updated);
+            setSelectedBook(updated);
+          }}
+          onDelete={onDeleteBook}
+        />
+      )}
+
+      {/* Manual Entry Modal */}
+      <ManualEntryModal
+        isOpen={showManualEntry}
+        onClose={() => setShowManualEntry(false)}
+        onAddBook={onAddBook}
+        existingISBNs={books.map(b => b.isbn)}
+      />
     </div>
   );
 };
