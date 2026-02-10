@@ -36,7 +36,7 @@ const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate, onClick }
       <div
         className="relative aspect-[2/3] rounded-xl overflow-hidden transition-all duration-300"
         style={{
-          boxShadow: 'var(--shadow-md)', // Base shadow
+          boxShadow: 'var(--shadow-lg)', // Base shadow increased
           backgroundColor: 'var(--color-surface)',
         }}
       >
@@ -56,10 +56,7 @@ const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate, onClick }
           style={{ boxShadow: 'inset 0 0 20px rgba(0,0,0,0.1)' }}
         />
 
-        {/* Status Badge - Top Left */}
-        <div className="absolute top-2 left-2 glass px-2 py-1 rounded-lg text-sm shadow-sm backdrop-blur-md">
-          {STATUS_EMOJI[book.readingStatus]}
-        </div>
+        {/* Favorite Badge - Top Right */}
 
         {/* Favorite Badge - Top Right */}
         {book.favorite && (
