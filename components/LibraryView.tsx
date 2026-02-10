@@ -4,7 +4,7 @@ import { GridIcon } from './icons/GridIcon';
 import { ListIcon } from './icons/ListIcon';
 import { SearchIcon } from './icons/SearchIcon';
 import { PlusIcon } from './icons/PlusIcon';
-import { BookOpen, Book as BookIcon, CheckCircle, Heart, Library, Edit2, Camera } from 'lucide-react';
+import { BookOpen, Book as BookIcon, CheckCircle, Heart, Library, Edit2, Camera, BarChart3 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import BookCard from './BookCard';
 import BookListItem from './BookListItem';
@@ -145,7 +145,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({
                 onClick={onOpenStats}
                 className="w-10 h-10 glass-button rounded-full flex items-center justify-center"
               >
-                <span className="text-lg">📊</span>
+                <BarChart3 className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} />
               </button>
               {/* Settings */}
               <button
@@ -286,14 +286,16 @@ const LibraryView: React.FC<LibraryViewProps> = ({
                   onClick={onScanMore}
                   className="px-6 py-3 btn-primary rounded-full font-semibold"
                 >
-                  📷 Scan Barcode
+                  <Camera className="w-5 h-5" />
+                  <span>Scan Barcode</span>
                 </button>
                 <button
                   onClick={() => setShowManualEntry(true)}
                   className="px-6 py-3 glass-button rounded-full font-semibold"
                   style={{ color: 'var(--color-text)' }}
                 >
-                  ✏️ Add Manually
+                  <Edit2 className="w-5 h-5" />
+                  <span>Add Manually</span>
                 </button>
               </div>
             )}
