@@ -76,32 +76,18 @@ const BookDetailView: React.FC<BookDetailViewProps> = ({ book, onClose, onUpdate
 
             {/* Content Section */}
             <div className="px-6 py-8 pb-32">
-                {/* Stats Row */}
-                <div className="flex justify-between mb-8 border-b border-gray-100 pb-6">
-                    <div className="flex flex-col items-center gap-1">
-                        <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Rating</span>
-                        <div className="flex items-center gap-1">
-                            <span className="font-bold text-lg text-gray-800">{book.rating || '-'}</span>
-                            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                {/* Tags/Genres - Moved to Top */}
+                {book.genre && book.genre.length > 0 && (
+                    <div className="mb-6">
+                        <div className="flex flex-wrap gap-2">
+                            {book.genre.map((g, i) => (
+                                <span key={i} className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium uppercase tracking-wide">
+                                    {g}
+                                </span>
+                            ))}
                         </div>
                     </div>
-                    <div className="w-px bg-gray-100" />
-                    <div className="flex flex-col items-center gap-1">
-                        <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Pages</span>
-                        <div className="flex items-center gap-1">
-                            <span className="font-bold text-lg text-gray-800">{book.pageCount}</span>
-                            <BookOpen className="w-4 h-4 text-gray-400" />
-                        </div>
-                    </div>
-                    <div className="w-px bg-gray-100" />
-                    <div className="flex flex-col items-center gap-1">
-                        <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Published</span>
-                        <div className="flex items-center gap-1">
-                            <span className="font-bold text-lg text-gray-800">{book.publishYear || '-'}</span>
-                            <Calendar className="w-4 h-4 text-gray-400" />
-                        </div>
-                    </div>
-                </div>
+                )}
 
                 {/* Description */}
                 <div className="mb-8">
@@ -110,29 +96,36 @@ const BookDetailView: React.FC<BookDetailViewProps> = ({ book, onClose, onUpdate
                         {book.description || 'No description available.'}
                     </p>
                 </div>
-
-                {/* Tags/Genres */}
-                {book.genre && book.genre.length > 0 && (
-                    <div className="mb-8">
-                        <h3 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wider">Genres</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {book.genre.map((g, i) => (
-                                <span key={i} className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                                    {g}
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-                )}
             </div>
 
-            {/* Bottom Action Bar */}
-            <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 flex gap-3 pb-8 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                <button className="flex-[2] py-3.5 bg-gray-900 text-white rounded-xl font-semibold shadow-lg shadow-gray-200 active:scale-95 transition-transform flex items-center justify-center gap-2">
-                    <span>Start Reading</span>
+            {/* Bottom Action Bar - Status Buttons */}
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 flex gap-2 pb-8 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                <button
+                    onClick={() => onUpdate({ ...book, readingStatus: 'unread' })}
+                    className={`flex-1 py-3.5 rounded-xl font-semibold transition-all ${book.readingStatus === 'unread' || book.readingStatus === 'wishlist'
+                            ? 'bg-gray-900 text-white shadow-lg shadow-gray-200 scale-[1.02]'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                >
+                    To Read
                 </button>
-                <button className="flex-1 py-3.5 bg-gray-100 text-gray-900 rounded-xl font-semibold hover:bg-gray-200 transition-colors">
-                    Details
+                <button
+                    onClick={() => onUpdate({ ...book, readingStatus: 'reading' })}
+                    className={`flex-1 py-3.5 rounded-xl font-semibold transition-all ${book.readingStatus === 'reading'
+                            ? 'bg-teal-600 text-white shadow-lg shadow-teal-200 scale-[1.02]'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                >
+                    Reading
+                </button>
+                <button
+                    onClick={() => onUpdate({ ...book, readingStatus: 'read' })}
+                    className={`flex-1 py-3.5 rounded-xl font-semibold transition-all ${book.readingStatus === 'read'
+                            ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200 scale-[1.02]'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                >
+                    Read
                 </button>
             </div>
         </motion.div>
