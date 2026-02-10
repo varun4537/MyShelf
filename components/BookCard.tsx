@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { Book, ReadingStatus } from '../types';
 
 interface BookCardProps {
@@ -24,9 +25,10 @@ const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate, onClick }
   };
 
   return (
-    <div
+    <motion.div
       className="group cursor-pointer"
       onClick={onClick}
+      layoutId={`book-card-${book.isbn}`}
     >
       {/* Card Container with shadow */}
       <div
@@ -37,12 +39,14 @@ const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate, onClick }
         }}
       >
         {/* Cover Image */}
-        <img
-          src={imageError ? 'https://via.placeholder.com/200x300/1a1a1c/666?text=No+Cover' : book.coverUrl}
-          alt={book.title}
-          className="w-full h-full object-cover"
-          onError={() => setImageError(true)}
-        />
+        <motion.div layoutId={`book-cover-${book.isbn}`} className="w-full h-full">
+          <img
+            src={imageError ? 'https://via.placeholder.com/200x300/1a1a1c/666?text=No+Cover' : book.coverUrl}
+            alt={book.title}
+            className="w-full h-full object-cover"
+            onError={() => setImageError(true)}
+          />
+        </motion.div>
 
         {/* Status Badge - Top Left */}
         <div className="absolute top-2 left-2 glass px-2 py-1 rounded-lg text-sm">
@@ -93,7 +97,7 @@ const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate, onClick }
           {book.authors.join(', ')}
         </p>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

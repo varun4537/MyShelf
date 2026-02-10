@@ -14,7 +14,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [theme, setThemeState] = useState<Theme>(() => {
         if (typeof window === 'undefined') return 'dark';
         const stored = localStorage.getItem('myshelf-theme') as Theme;
-        return stored || 'dark';
+        return stored || 'light';
     });
 
     const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>('dark');

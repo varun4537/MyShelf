@@ -4,9 +4,10 @@ import { GridIcon } from './icons/GridIcon';
 import { ListIcon } from './icons/ListIcon';
 import { SearchIcon } from './icons/SearchIcon';
 import { PlusIcon } from './icons/PlusIcon';
+import { AnimatePresence } from 'framer-motion';
 import BookCard from './BookCard';
 import BookListItem from './BookListItem';
-import BookDetailsModal from './BookDetailsModal';
+import BookDetailView from './BookDetailView';
 import ManualEntryModal from './ManualEntryModal';
 
 interface LibraryViewProps {
@@ -342,18 +343,18 @@ const LibraryView: React.FC<LibraryViewProps> = ({
       )}
 
       {/* Book Details Modal */}
-      {selectedBook && (
-        <BookDetailsModal
-          book={selectedBook}
-          isOpen={!!selectedBook}
-          onClose={() => setSelectedBook(null)}
-          onUpdate={(updated) => {
-            onUpdateBook(updated);
-            setSelectedBook(updated);
-          }}
-          onDelete={onDeleteBook}
-        />
-      )}
+      <AnimatePresence>
+        {selectedBook && (
+          <BookDetailView
+            book={selectedBook}
+            onClose={() => setSelectedBook(null)}
+            onUpdate={(updated) => {
+              onUpdateBook(updated);
+              setSelectedBook(updated);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Manual Entry Modal */}
       <ManualEntryModal

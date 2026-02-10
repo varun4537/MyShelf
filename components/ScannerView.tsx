@@ -166,7 +166,7 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
   }, [onStop]);
 
   return (
-    <div className="min-h-screen w-full bg-[#0D0D0F] flex flex-col">
+    <div className="min-h-screen w-full flex flex-col" style={{ background: 'var(--color-bg)' }}>
       {/* Toast Container */}
       <div className="toast-container">
         {toasts.map(toast => (
@@ -179,8 +179,8 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
 
       {/* Header */}
       <div className="p-4 text-center">
-        <h1 className="text-2xl font-bold text-white">Scan Books</h1>
-        <p className="text-gray-400 text-sm mt-1">Point at ISBN barcode</p>
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>Scan Books</h1>
+        <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>Point at ISBN barcode</p>
       </div>
 
       {/* Scanner Container */}
@@ -188,13 +188,13 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
         <div className="w-full max-w-md">
           <div
             id="reader"
-            className="rounded-2xl overflow-hidden bg-black/50"
+            className="rounded-2xl overflow-hidden glass"
             style={{ minHeight: '300px' }}
           />
           {!isInitialized && (
             <div className="flex items-center justify-center mt-4">
               <div className="spinner" />
-              <span className="ml-3 text-gray-400">Starting camera...</span>
+              <span className="ml-3" style={{ color: 'var(--color-text-muted)' }}>Starting camera...</span>
             </div>
           )}
         </div>
@@ -202,7 +202,7 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
 
       {/* Book count indicator */}
       <div className="text-center py-2">
-        <span className="text-gray-400 text-sm">
+        <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
           {existingISBNs.length} book{existingISBNs.length !== 1 ? 's' : ''} in library
         </span>
       </div>
@@ -211,8 +211,7 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
       <div className="p-6 pb-10">
         <button
           onClick={handleStop}
-          className="w-full py-4 bg-[#E8A04C] text-[#0D0D0F] font-semibold rounded-full text-lg shadow-lg transition-all duration-300 hover:bg-amber-400 active:scale-98"
-          style={{ boxShadow: '0 4px 20px rgba(232, 160, 76, 0.3)' }}
+          className="w-full py-4 btn-primary font-semibold rounded-full text-lg shadow-lg transition-all duration-300 active:scale-98"
         >
           View Library ({existingISBNs.length})
         </button>
