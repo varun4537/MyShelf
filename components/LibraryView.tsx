@@ -300,7 +300,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({
       </main>
 
       {/* FAB with Menu */}
-      <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3">
+      <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3 z-50">
         {/* FAB Menu */}
         {showFabMenu && (
           <div className="flex flex-col gap-2 mb-2 animate-slide-up">
