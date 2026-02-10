@@ -29,13 +29,15 @@ const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate, onClick }
       className="group cursor-pointer"
       onClick={onClick}
       layoutId={`book-card-${book.isbn}`}
+      whileHover={{ y: -4 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
     >
-      {/* Card Container with shadow */}
+      {/* Card Container with enhanced shadow */}
       <div
-        className="relative aspect-[2/3] rounded-xl overflow-hidden transition-all duration-300 transform group-hover:-translate-y-1"
+        className="relative aspect-[2/3] rounded-xl overflow-hidden transition-all duration-300"
         style={{
-          boxShadow: 'var(--shadow-md)',
-          border: '1px solid var(--color-border)'
+          boxShadow: 'var(--shadow-md)', // Base shadow
+          backgroundColor: 'var(--color-surface)',
         }}
       >
         {/* Cover Image */}
@@ -43,40 +45,47 @@ const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate, onClick }
           <img
             src={imageError ? 'https://via.placeholder.com/200x300/1a1a1c/666?text=No+Cover' : book.coverUrl}
             alt={book.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             onError={() => setImageError(true)}
           />
         </motion.div>
 
+        {/* Hover Shadow Overlay - creates depth on hover */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          style={{ boxShadow: 'inset 0 0 20px rgba(0,0,0,0.1)' }}
+        />
+
         {/* Status Badge - Top Left */}
-        <div className="absolute top-2 left-2 glass px-2 py-1 rounded-lg text-sm">
+        <div className="absolute top-2 left-2 glass px-2 py-1 rounded-lg text-sm shadow-sm backdrop-blur-md">
           {STATUS_EMOJI[book.readingStatus]}
         </div>
 
         {/* Favorite Badge - Top Right */}
         {book.favorite && (
-          <div className="absolute top-2 right-2 text-lg drop-shadow-lg">
+          <div className="absolute top-2 right-2 text-lg drop-shadow-md animate-pulse-slow">
             ❤️
           </div>
         )}
 
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300" />
+        {/* Gradient Overlay - Smooth readability gradient */}
+        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
         {/* Quick Favorite Button on Hover */}
         <button
           onClick={handleFavoriteClick}
-          className="absolute bottom-3 right-3 w-8 h-8 glass rounded-full flex items-center justify-center opacity-0 sm:group-hover:opacity-100 transition-all duration-300 hover:scale-110"
+          className="absolute bottom-3 right-3 w-8 h-8 glass rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 shadow-lg"
+          style={{ backdropFilter: 'blur(4px)' }}
         >
           {book.favorite ? '❤️' : '🤍'}
         </button>
       </div>
 
-      {/* Book Info - Below card */}
+      {/* Book Info - Improved Typography Hierarchy */}
       <div className="mt-3 px-1">
         {/* Rating Stars */}
         {book.rating ? (
-          <div className="flex items-center gap-0.5 mb-1">
+          <div className="flex items-center gap-0.5 mb-1.5">
             {[1, 2, 3, 4, 5].map(star => (
               <span key={star} className="text-xs">
                 {star <= book.rating! ? '⭐' : '☆'}
@@ -84,16 +93,23 @@ const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate, onClick }
             ))}
           </div>
         ) : (
-          <div className="h-4 mb-1" />
+          <div className="h-4 mb-1.5" />
         )}
 
-        {/* Title */}
-        <h3 className="font-semibold text-sm leading-tight line-clamp-2" style={{ color: 'var(--color-text)' }}>
+        {/* Title - Bolder and Clearer */}
+        <h3
+          className="font-bold text-sm leading-tight line-clamp-2 mb-1"
+          style={{ color: 'var(--color-text)' }}
+          title={book.title}
+        >
           {book.title}
         </h3>
 
-        {/* Author */}
-        <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--color-text-secondary)' }}>
+        {/* Author - Muted and Distinct */}
+        <p
+          className="text-xs font-medium truncate"
+          style={{ color: 'var(--color-text-secondary)', opacity: 0.9 }}
+        >
           {book.authors.join(', ')}
         </p>
       </div>

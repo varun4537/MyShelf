@@ -4,6 +4,7 @@ import { GridIcon } from './icons/GridIcon';
 import { ListIcon } from './icons/ListIcon';
 import { SearchIcon } from './icons/SearchIcon';
 import { PlusIcon } from './icons/PlusIcon';
+import { BookOpen, Book as BookIcon, CheckCircle, Heart, Library, Edit2, Camera } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import BookCard from './BookCard';
 import BookListItem from './BookListItem';
@@ -23,12 +24,12 @@ interface LibraryViewProps {
 type ViewMode = 'grid' | 'list';
 type SortKey = 'dateAdded' | 'title' | 'author' | 'rating';
 
-const FILTER_OPTIONS: { value: ReadingStatus | 'all' | 'favorites'; label: string; emoji: string }[] = [
-  { value: 'all', label: 'All', emoji: '📚' },
-  { value: 'reading', label: 'Reading', emoji: '📖' },
-  { value: 'unread', label: 'Unread', emoji: '📕' },
-  { value: 'read', label: 'Read', emoji: '✅' },
-  { value: 'favorites', label: 'Favorites', emoji: '❤️' },
+const FILTER_OPTIONS: { value: ReadingStatus | 'all' | 'favorites'; label: string; icon: React.FC<{ className?: string }> }[] = [
+  { value: 'all', label: 'All', icon: Library },
+  { value: 'reading', label: 'Reading', icon: BookOpen },
+  { value: 'unread', label: 'Unread', icon: BookIcon },
+  { value: 'read', label: 'Read', icon: CheckCircle },
+  { value: 'favorites', label: 'Favorites', icon: Heart },
 ];
 
 const LibraryView: React.FC<LibraryViewProps> = ({
@@ -202,17 +203,18 @@ const LibraryView: React.FC<LibraryViewProps> = ({
             {FILTER_OPTIONS.map(opt => {
               const count = filterCounts[opt.value as keyof typeof filterCounts] || 0;
               const isActive = statusFilter === opt.value;
+              const Icon = opt.icon;
               return (
                 <button
                   key={opt.value}
                   onClick={() => setStatusFilter(opt.value)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${isActive ? 'btn-primary' : 'glass-button'
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${isActive ? 'btn-primary' : 'glass-button'
                     }`}
                   style={{ color: isActive ? 'white' : 'var(--color-text)' }}
                 >
-                  <span>{opt.emoji}</span>
+                  <Icon className="w-4 h-4" />
                   <span>{opt.label}</span>
-                  <span style={{ opacity: 0.7 }}>{count}</span>
+                  <span style={{ opacity: 0.7, fontSize: '0.85em', marginLeft: '2px' }}>{count}</span>
                 </button>
               );
             })}
@@ -306,18 +308,18 @@ const LibraryView: React.FC<LibraryViewProps> = ({
           <div className="flex flex-col gap-2 mb-2 animate-slide-up">
             <button
               onClick={() => { setShowManualEntry(true); setShowFabMenu(false); }}
-              className="flex items-center gap-3 px-4 py-3 glass rounded-full shadow-lg"
-              style={{ color: 'var(--color-text)' }}
+              className="flex items-center gap-3 px-4 py-3 glass rounded-full shadow-lg transition-transform hover:scale-105"
+              style={{ color: 'var(--color-text)', backgroundColor: 'var(--color-surface)' }}
             >
-              <span>✏️</span>
+              <Edit2 className="w-5 h-5 text-teal-600" />
               <span className="text-sm font-medium">Add Manually</span>
             </button>
             <button
               onClick={() => { onScanMore(); setShowFabMenu(false); }}
-              className="flex items-center gap-3 px-4 py-3 glass rounded-full shadow-lg"
-              style={{ color: 'var(--color-text)' }}
+              className="flex items-center gap-3 px-4 py-3 glass rounded-full shadow-lg transition-transform hover:scale-105"
+              style={{ color: 'var(--color-text)', backgroundColor: 'var(--color-surface)' }}
             >
-              <span>📷</span>
+              <Camera className="w-5 h-5 text-teal-600" />
               <span className="text-sm font-medium">Scan Barcode</span>
             </button>
           </div>
