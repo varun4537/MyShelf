@@ -48,8 +48,16 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
 
                 const book = await fetchBookByISBN(cleanQuery);
                 if (book) {
-                    onAddBook(book);
-                    onClose();
+                    // Populate form instead of auto-adding
+                    setIsbn(book.isbn);
+                    setTitle(book.title);
+                    setAuthors(book.authors.join(', '));
+                    setGenre(book.genre.join(', '));
+                    setDescription(book.description);
+                    setCoverUrl(book.coverUrl);
+
+                    setMode('manual');
+                    setError(null); // Clear any errors
                     return;
                 }
             }
