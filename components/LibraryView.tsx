@@ -271,7 +271,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({
           )
         ) : (
           <div className="text-center py-20">
-            <div className="text-6xl mb-4">📚</div>
+            <Library className="w-16 h-16 mx-auto mb-4 opacity-50" style={{ color: 'var(--color-primary)' }} />
             <h2 className="text-xl font-semibold" style={{ color: 'var(--color-text)' }}>
               {books.length === 0 ? 'Your Shelf is Empty' : 'No Books Found'}
             </h2>
@@ -301,40 +301,42 @@ const LibraryView: React.FC<LibraryViewProps> = ({
         )}
       </main>
 
-      {/* FAB with Menu */}
-      <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3 z-50">
-        {/* FAB Menu */}
-        {showFabMenu && (
-          <div className="flex flex-col gap-2 mb-2 animate-slide-up">
-            <button
-              onClick={() => { setShowManualEntry(true); setShowFabMenu(false); }}
-              className="flex items-center gap-3 px-4 py-3 glass rounded-full shadow-lg transition-transform hover:scale-105"
-              style={{ color: 'var(--color-text)', backgroundColor: 'var(--color-surface)' }}
-            >
-              <Edit2 className="w-5 h-5 text-teal-600" />
-              <span className="text-sm font-medium">Add Manually</span>
-            </button>
-            <button
-              onClick={() => { onScanMore(); setShowFabMenu(false); }}
-              className="flex items-center gap-3 px-4 py-3 glass rounded-full shadow-lg transition-transform hover:scale-105"
-              style={{ color: 'var(--color-text)', backgroundColor: 'var(--color-surface)' }}
-            >
-              <Camera className="w-5 h-5 text-teal-600" />
-              <span className="text-sm font-medium">Scan Barcode</span>
-            </button>
-          </div>
-        )}
+      {/* FAB with Menu - Only show when we have books (avoid duplicate CTAs) */}
+      {books.length > 0 && (
+        <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3 z-50">
+          {/* FAB Menu */}
+          {showFabMenu && (
+            <div className="flex flex-col gap-2 mb-2 animate-slide-up">
+              <button
+                onClick={() => { setShowManualEntry(true); setShowFabMenu(false); }}
+                className="flex items-center gap-3 px-4 py-3 glass rounded-full shadow-lg transition-transform hover:scale-105"
+                style={{ color: 'var(--color-text)', backgroundColor: 'var(--color-surface)' }}
+              >
+                <Edit2 className="w-5 h-5 text-teal-600" />
+                <span className="text-sm font-medium">Add Manually</span>
+              </button>
+              <button
+                onClick={() => { onScanMore(); setShowFabMenu(false); }}
+                className="flex items-center gap-3 px-4 py-3 glass rounded-full shadow-lg transition-transform hover:scale-105"
+                style={{ color: 'var(--color-text)', backgroundColor: 'var(--color-surface)' }}
+              >
+                <Camera className="w-5 h-5 text-teal-600" />
+                <span className="text-sm font-medium">Scan Barcode</span>
+              </button>
+            </div>
+          )}
 
-        {/* Main FAB */}
-        <button
-          onClick={() => setShowFabMenu(!showFabMenu)}
-          className={`w-14 h-14 btn-primary rounded-full flex items-center justify-center transition-all ${showFabMenu ? 'rotate-45' : ''
-            }`}
-          aria-label="Add book"
-        >
-          <PlusIcon className="w-7 h-7" />
-        </button>
-      </div>
+          {/* Main FAB */}
+          <button
+            onClick={() => setShowFabMenu(!showFabMenu)}
+            className={`w-14 h-14 btn-primary rounded-full flex items-center justify-center transition-all ${showFabMenu ? 'rotate-45' : ''
+              }`}
+            aria-label="Add book"
+          >
+            <PlusIcon className="w-7 h-7" />
+          </button>
+        </div>
+      )}
 
       {/* Backdrop when FAB menu is open */}
       {showFabMenu && (
