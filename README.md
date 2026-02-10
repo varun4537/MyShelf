@@ -52,7 +52,7 @@ MyShelf is a mobile-first web app for building a digital replica of your physica
 - **Scanner**: `html5-qrcode`
 - **API**: Open Library (primary), OpenRouter LLM (fallback)
 - **Backend**: Vercel Serverless Functions
-- **Storage**: Browser localStorage
+- **Storage**: Vercel KV (shared library) + browser localStorage for client state
 
 ## 🚀 Getting Started
 
@@ -68,12 +68,12 @@ npm install
 
 # Create .env file
 cp .env.example .env
-# Add your OPENROUTER_API_KEY
+# Add your OPENROUTER_API_KEY + shared login + Vercel KV credentials
 
 # Start dev server
 npm run dev
 
-# For API testing, run Vercel dev
+# For API testing + serverless endpoints, run Vercel dev
 npx vercel dev
 ```
 
@@ -87,7 +87,31 @@ npm run build
 npx vercel --prod
 ```
 
-**Important:** Add `OPENROUTER_API_KEY` to Vercel Environment Variables.
+**Important:** Add the following to Vercel Environment Variables:
+- `OPENROUTER_API_KEY`
+- `APP_USER`
+- `APP_PASS`
+- `KV_URL`
+- `KV_REST_API_URL`
+- `KV_REST_API_TOKEN`
+- `KV_REST_API_READ_ONLY_TOKEN`
+
+### Environment Variables
+
+```bash
+# Book lookup (LLM fallback)
+OPENROUTER_API_KEY=your_key_here
+
+# Shared beta login
+APP_USER=Mybooks
+APP_PASS=quickscan123
+
+# Vercel KV / Upstash Redis credentials
+KV_URL=
+KV_REST_API_URL=
+KV_REST_API_TOKEN=
+KV_REST_API_READ_ONLY_TOKEN=
+```
 
 ## 📋 Requirements
 
@@ -99,7 +123,9 @@ npx vercel --prod
 
 ```
 ├── api/                 # Vercel serverless functions
-│   └── book.ts          # Book lookup API (secure)
+│   ├── book.ts          # Book lookup API (secure)
+│   ├── login.ts         # Shared login auth
+│   └── library.ts       # Shared library backed by Vercel KV
 ├── components/          # React components
 ├── contexts/            # React contexts (Theme)
 ├── hooks/               # Custom hooks

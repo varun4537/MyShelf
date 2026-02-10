@@ -1,14 +1,22 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Book } from './types';
-import useLocalStorage from './hooks/useLocalStorage';
 import SplashScreen from './components/SplashScreen';
 import ScannerView from './components/ScannerView';
 import LibraryView from './components/LibraryView';
 import SettingsView from './components/SettingsView';
 import StatsView from './components/StatsView';
+import LoginView from './components/LoginView';
+import {
+  addBookRemote,
+  deleteAllBooksRemote,
+  deleteBookRemote,
+  fetchBooks,
+  updateBookRemote
+} from './services/libraryService';
+import { clearAuthToken, getAuthToken, login } from './services/authService';
 
-type View = 'splash' | 'scanner' | 'library' | 'settings' | 'stats';
+type View = 'login' | 'splash' | 'scanner' | 'library' | 'settings' | 'stats';
 
 /**
  * Main Application Component
@@ -17,8 +25,52 @@ type View = 'splash' | 'scanner' | 'library' | 'settings' | 'stats';
  * of the book collection using LocalStorage.
  */
 const App: React.FC = () => {
-  const [view, setView] = useState<View>('splash');
-  const [books, setBooks] = useLocalStorage<Book[]>('my-shelf-books', []);
+  const [authToken, setAuthToken] = useState<string | null>(getAuthToken());
+  const [view, setView] = useState<View>('login');
+  const [books, setBooks] = useState<Book[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  useEffect(() => {
+    if (!authToken) {
+      setBooks([]);
+      setView('login');
+      return;
+    }
+
+    setIsLoading(true);
+    fetchBooks()
+      .then((data) => {
+        setBooks(data);
+        setView('scanner');
+      })
+      .catch((error) => {
+        if (error instanceof Error && error.message === 'Unauthorized') {
+          clearAuthToken();
+          setAuthToken(null);
+          setView('login');
+        } else {
+          console.error('Failed to load books:', error);
+        }
+      })
+      .finally(() => setIsLoading(false));
+  }, [authToken]);
+
+  const handleLogin = useCallback(async (username: string, password: string) => {
+    setIsLoggingIn(true);
+    setLoginError(null);
+    try {
+      const token = await login(username, password);
+      setAuthToken(token);
+      setView('scanner');
+    } catch (error) {
+      console.error('Login failed:', error);
+      setLoginError('Invalid credentials. Please try again.');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  }, []);
 
   const addBook = useCallback((newBook: Book) => {
     setBooks(prevBooks => {
@@ -27,22 +79,60 @@ const App: React.FC = () => {
       }
       return [newBook, ...prevBooks];
     });
-  }, [setBooks]);
+    addBookRemote(newBook).catch((error) => {
+      if (error instanceof Error && error.message === 'Unauthorized') {
+        clearAuthToken();
+        setAuthToken(null);
+      }
+      console.error('Failed to sync new book:', error);
+    });
+  }, []);
 
   const deleteBook = useCallback((isbn: string) => {
     setBooks(prevBooks => prevBooks.filter(book => book.isbn !== isbn));
-  }, [setBooks]);
+    deleteBookRemote(isbn).catch((error) => {
+      if (error instanceof Error && error.message === 'Unauthorized') {
+        clearAuthToken();
+        setAuthToken(null);
+      }
+      console.error('Failed to delete book:', error);
+    });
+  }, []);
 
   const updateBook = useCallback((updatedBook: Book) => {
     setBooks(prevBooks => prevBooks.map(book => book.isbn === updatedBook.isbn ? updatedBook : book));
-  }, [setBooks]);
+    updateBookRemote(updatedBook).catch((error) => {
+      if (error instanceof Error && error.message === 'Unauthorized') {
+        clearAuthToken();
+        setAuthToken(null);
+      }
+      console.error('Failed to update book:', error);
+    });
+  }, []);
 
   const clearAllData = useCallback(() => {
     setBooks([]);
     setView('library');
-  }, [setBooks]);
+    deleteAllBooksRemote().catch((error) => {
+      if (error instanceof Error && error.message === 'Unauthorized') {
+        clearAuthToken();
+        setAuthToken(null);
+      }
+      console.error('Failed to clear library:', error);
+    });
+  }, []);
 
   const renderView = () => {
+    if (!authToken) {
+      return (
+        <LoginView
+          onLogin={handleLogin}
+          isLoading={isLoggingIn}
+          errorMessage={loginError}
+        />
+      );
+    }
+
     switch (view) {
       case 'splash':
         return <SplashScreen onStart={() => setView('scanner')} />;
@@ -88,7 +178,14 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full" style={{ background: 'var(--color-bg)' }}>
-      {renderView()}
+      {authToken && isLoading && books.length === 0 && view !== 'login' ? (
+        <div className="min-h-screen flex flex-col items-center justify-center gap-3">
+          <div className="spinner" />
+          <p style={{ color: 'var(--color-text-secondary)' }}>Loading shared library...</p>
+        </div>
+      ) : (
+        renderView()
+      )}
     </div>
   );
 };

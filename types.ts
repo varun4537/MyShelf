@@ -10,6 +10,7 @@ export interface Book {
   dateAdded: string;
   description: string;
   pageCount: number;
+  source?: string;
   // V2 Enhanced fields
   readingStatus: ReadingStatus;
   rating: number | null;  // 1-5 stars, null if unrated
