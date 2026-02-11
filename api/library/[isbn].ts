@@ -6,14 +6,30 @@ const LIBRARY_KEY = 'myshelf:library';
 
 // Support both Vercel KV env vars and REDIS_URL
 const getKVClient = () => {
-    const url = process.env.KV_REST_API_URL || process.env.REDIS_URL;
-    const token = process.env.KV_REST_API_TOKEN || '';
+    // If standard Vercel KV vars exist, use them
+    if (process.env.KV_REST_API_URL) {
+        return createClient({
+            url: process.env.KV_REST_API_URL,
+            token: process.env.KV_REST_API_TOKEN || ''
+        });
+    }
 
-    if (!url) {
+    // Parse REDIS_URL (format: redis://default:TOKEN@HOST:PORT)
+    const redisUrl = process.env.REDIS_URL;
+    if (!redisUrl) {
         throw new Error('No KV/Redis URL configured');
     }
 
-    return createClient({ url, token });
+    // Parse redis:// URL
+    const match = redisUrl.match(/redis:\/\/default:([^@]+)@([^:]+):(\d+)/);
+    if (!match) {
+        throw new Error('Invalid REDIS_URL format');
+    }
+
+    const [, token, host, port] = match;
+    const httpsUrl = `https://${host}:${port}`;
+
+    return createClient({ url: httpsUrl, token });
 };
 
 const kv = getKVClient();
