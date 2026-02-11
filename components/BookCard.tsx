@@ -68,14 +68,30 @@ const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate, onClick }
         {/* Gradient Overlay - Smooth readability gradient */}
         <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-        {/* Quick Favorite Button on Hover */}
-        <button
-          onClick={handleFavoriteClick}
-          className="absolute bottom-3 right-3 w-8 h-8 glass rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 shadow-lg"
-          style={{ backdropFilter: 'blur(4px)' }}
-        >
-          {book.favorite ? '❤️' : '🤍'}
-        </button>
+        <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
+          {/* Favorite Button */}
+          <button
+            onClick={handleFavoriteClick}
+            className="w-8 h-8 glass rounded-full flex items-center justify-center hover:scale-110 shadow-lg text-white"
+            style={{ backdropFilter: 'blur(4px)' }}
+          >
+            {book.favorite ? '❤️' : '🤍'}
+          </button>
+
+          {/* Delete Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (window.confirm(`Are you sure you want to remove "${book.title}"?`)) {
+                onDelete(book.isbn);
+              }
+            }}
+            className="w-8 h-8 glass rounded-full flex items-center justify-center hover:scale-110 shadow-lg bg-red-500/20 hover:bg-red-500/40 text-white"
+            style={{ backdropFilter: 'blur(4px)' }}
+          >
+            🗑️
+          </button>
+        </div>
       </div>
 
       {/* Book Info - Improved Typography Hierarchy */}
