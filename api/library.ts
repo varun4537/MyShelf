@@ -1,8 +1,22 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { kv } from '@vercel/kv';
+import { createClient } from '@vercel/kv';
 import type { Book } from '../types';
 
 const LIBRARY_KEY = 'myshelf:library';
+
+// Support both Vercel KV env vars and REDIS_URL
+const getKVClient = () => {
+    const url = process.env.KV_REST_API_URL || process.env.REDIS_URL;
+    const token = process.env.KV_REST_API_TOKEN || '';
+
+    if (!url) {
+        throw new Error('No KV/Redis URL configured');
+    }
+
+    return createClient({ url, token });
+};
+
+const kv = getKVClient();
 
 const isAuthorized = (req: VercelRequest) => {
     const token = req.headers.authorization?.replace('Bearer ', '');
