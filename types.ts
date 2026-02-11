@@ -19,6 +19,8 @@ export interface Book {
   publisher?: string;
   publishYear?: number;
   language?: string;
+  series?: string;
+  seriesOrder?: string; // String handles "1", "1.5", "Book 1", etc.
 }
 
 /**
@@ -52,4 +54,6 @@ export const migrateBook = (book: any): Book => ({
   publisher: book.publisher,
   publishYear: book.publishYear,
   language: book.language,
+  series: book.series,
+  seriesOrder: book.seriesOrder,
 });

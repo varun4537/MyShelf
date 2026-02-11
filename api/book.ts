@@ -17,6 +17,8 @@ interface BookData {
     publisher?: string;
     publishYear?: number;
     language?: string;
+    series?: string;
+    seriesOrder?: string;
 }
 
 // Try Open Library first (fast, free, no API key needed)
@@ -30,15 +32,29 @@ async function tryOpenLibrary(isbn: string): Promise<BookData | null> {
 
         if (!bookData) return null;
 
+        // Parse series info if available
+        let series = undefined;
+        let seriesOrder = undefined;
+
+        // OpenLibrary series format varies
+        if (Array.isArray(bookData.series)) {
+            series = bookData.series[0]?.name;
+        } else if (bookData.series?.name) {
+            series = bookData.series.name;
+        }
+
         return {
             title: bookData.title || 'Unknown Title',
             authors: bookData.authors?.map((a: { name: string }) => a.name) || ['Unknown Author'],
-            genre: bookData.subjects?.slice(0, 3).map((s: { name: string }) => s.name) || ['Uncategorized'],
+            // Enhance: specific subjects only
+            genre: bookData.subjects?.slice(0, 5).map((s: { name: string }) => s.name) || ['Uncategorized'],
             description: bookData.notes || bookData.excerpts?.[0]?.text || `${bookData.title} by ${bookData.authors?.[0]?.name || 'Unknown'}`,
             pageCount: bookData.number_of_pages || 0,
             publisher: bookData.publishers?.[0]?.name,
             publishYear: bookData.publish_date ? parseInt(bookData.publish_date) : undefined,
             language: bookData.languages?.[0]?.key?.replace('/languages/', ''),
+            series,
+            seriesOrder // OpenLibrary rarely provides order cleanly in this endpoint
         };
     } catch {
         return null;
@@ -59,9 +75,11 @@ Return this exact JSON format (no markdown, no explanation):
 {
   "title": "Book Title",
   "authors": ["Author Name"],
-  "genre": ["Genre1", "Genre2"],
-  "description": "Brief description",
-  "pageCount": 0
+  "genre": ["Specific Genre 1", "Specific Genre 2", "Mood"],
+  "description": "Engaging description (max 3 sentences)",
+  "pageCount": 0,
+  "series": "Series Name (if any)",
+  "seriesOrder": "1" (if any)
 }`;
 
     for (const model of MODELS) {

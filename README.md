@@ -134,12 +134,35 @@ KV_REST_API_READ_ONLY_TOKEN=
 └── utils/               # Utilities (export, ISBN)
 ```
 
-## 🔮 Future Plans
+  ## 🔮 Future Plans
 
+### Core Infrastructure
 - [ ] Firebase Auth (Google + Email/Password)
 - [ ] Real-time cloud sync
 - [ ] Collections (custom book groups)
 - [ ] Payment integration
+
+### Differentiation Strategy: Personal Reader's Journal
+- [ ] **Reading session tracking** - Start/stop timer per book
+- [ ] **Quote/Highlight capture** - Save favorite passages
+- [ ] **Reading streaks & achievements** - Gamification without social pressure
+- [ ] **Mood/context logging** - How did this book make you feel?
+- [ ] **Monthly reading reports** - AI-generated insights ("You read 3x more sci-fi this quarter")
+- [ ] **Private reading goals** - Set and track personal reading targets
+
+### Enhanced Library Management
+- [ ] **Series tracking** - Read order, missing volumes
+- [ ] **Cross-reference suggestions** - "You have 5 unread books by this author"
+- [ ] **Smart deduplication** - Merge multiple editions of same work
+- [ ] **Physical shelf organization** - Tag books by actual shelf location
+- [ ] **Collection value tracking** - Calculate library worth with book prices
+- [ ] **Export integrations** - Calibre, Goodreads, LibraryThing
+
+### Scanner Enhancements
+- [ ] **Batch scanning mode** - "Hold and scan" for rapid cataloging
+- [ ] **AI-powered auto-categorization** - Genre tagging based on content
+- [ ] **Cover image enhancement** - Higher quality covers via additional sources
+- [ ] **Multi-barcode support** - Scan multiple barcodes before processing
 
 ## 📄 License
 

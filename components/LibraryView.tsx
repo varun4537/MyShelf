@@ -423,7 +423,9 @@ const LibraryView: React.FC<LibraryViewProps> = ({
         {selectedBook && (
           <BookDetailView
             book={selectedBook}
+            allBooks={books}
             onClose={() => setSelectedBook(null)}
+            onSelectBook={setSelectedBook}
             onUpdate={(updated) => {
               onUpdateBook(updated);
               setSelectedBook(updated);

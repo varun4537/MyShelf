@@ -33,6 +33,8 @@ export async function fetchBookByISBN(isbn: string): Promise<Book | null> {
       publisher: data.publisher,
       publishYear: data.publishYear,
       language: data.language,
+      series: data.series,
+      seriesOrder: data.seriesOrder,
     });
   } catch (error) {
     console.error('Error fetching book by ISBN:', error);
