@@ -3,6 +3,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { fetchBookByISBN } from '../services/geminiService';
 import { Book } from '../types';
 import { isValidISBN } from '../utils/isbn';
+import { CheckCircle, ArrowLeft } from 'lucide-react';
 import '../scanner.css';
 
 interface ScannerViewProps {
@@ -17,15 +18,11 @@ interface Toast {
   type: 'success' | 'error' | 'loading';
 }
 
-/**
- * ScannerView Component
- * 
- * Uses html5-qrcode library for reliable barcode scanning.
- * Supports continuous scanning - add a book, immediately scan next.
- */
 const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingISBNs }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [lastScannedBook, setLastScannedBook] = useState<Book | null>(null);
+  const [isScanningActive, setIsScanningActive] = useState(true);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isProcessingRef = useRef(false);
   const lastScannedRef = useRef<string>('');
@@ -33,11 +30,11 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
 
   const addToast = useCallback((message: string, type: Toast['type']) => {
     const id = Date.now();
-    setToasts(prev => [{ id, message, type }, ...prev].slice(0, 5));
+    setToasts(prev => [{ id, message, type }, ...prev].slice(0, 3)); // Reduce stack to 3
     if (type !== 'loading') {
       setTimeout(() => {
         setToasts(prev => prev.filter(t => t.id !== id));
-      }, 2000); // Shorter duration for faster scanning
+      }, 3000);
     }
     return id;
   }, []);
@@ -47,7 +44,7 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
   }, []);
 
   const processBarcode = useCallback(async (isbn: string) => {
-    // Prevent duplicate processing
+    // Prevent duplicate processing or processing while active
     if (isProcessingRef.current || lastScannedRef.current === isbn) {
       return;
     }
@@ -59,18 +56,22 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
       // Reset after cooldown
       cooldownTimeoutRef.current = setTimeout(() => {
         lastScannedRef.current = '';
-      }, 3000);
+      }, 2000);
       return;
     }
 
     // Validate ISBN
     if (!isValidISBN(isbn)) {
-      return; // Silently ignore invalid ISBNs
+      return;
     }
 
     isProcessingRef.current = true;
+    setIsScanningActive(false); // Visual feedback: pause pulse
     lastScannedRef.current = isbn;
-    const loadingToastId = addToast(`🔍 Looking up ISBN: ${isbn}`, 'loading');
+    const loadingToastId = addToast(`🔍 Found ISBN... looking up details`, 'loading');
+
+    // Haptic feedback
+    if (navigator.vibrate) navigator.vibrate(50);
 
     try {
       const book = await fetchBookByISBN(isbn);
@@ -78,24 +79,24 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
 
       if (book) {
         onAddBook(book);
-        addToast(`✅ Added: ${book.title}`, 'success');
-        // Haptic feedback for mobile
-        if (navigator.vibrate) {
-          navigator.vibrate(100);
-        }
+        setLastScannedBook(book);
+        addToast(`✅ Added to library`, 'success');
+
+        // Success haptic
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
       } else {
-        addToast(`❌ Could not find book for ISBN: ${isbn}`, 'error');
+        addToast(`❌ Could not find book info`, 'error');
       }
     } catch (error) {
       removeToast(loadingToastId);
       console.error('Error processing barcode:', error);
       addToast(`❌ Error looking up book`, 'error');
     } finally {
-      // Quick cooldown for batch scanning
+      // Cooldown before next scan
       cooldownTimeoutRef.current = setTimeout(() => {
         isProcessingRef.current = false;
-        lastScannedRef.current = '';
-      }, 1000); // Reduced from 2s
+        setIsScanningActive(true); // Resume pulse
+      }, 1500);
     }
   }, [existingISBNs, onAddBook, addToast, removeToast]);
 
@@ -107,11 +108,14 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
         html5QrCode = new Html5Qrcode('reader');
         scannerRef.current = html5QrCode;
 
+        // Larger scanning area
+        const qrBoxSize = Math.min(window.innerWidth * 0.8, 300);
+
         const config = {
           fps: 15,
-          qrbox: { width: 350, height: 200 },
-          aspectRatio: 1.5,
-          formatsToSupport: [0], // 0 = EAN_13 format
+          qrbox: { width: qrBoxSize, height: qrBoxSize },
+          aspectRatio: window.innerWidth / window.innerHeight,
+          formatsToSupport: [0], // EAN_13
         };
 
         await html5QrCode.start(
@@ -120,32 +124,20 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
           (decodedText) => {
             processBarcode(decodedText);
           },
-          () => {
-            // QR Code scanning failure - ignore silently
-          }
+          () => { }
         );
 
         setIsInitialized(true);
       } catch (err) {
         console.error('Failed to start scanner:', err);
-        let message = 'Could not start camera';
-        if (err instanceof Error) {
-          if (err.message.includes('Permission')) {
-            message = 'Camera permission denied. Please allow access.';
-          } else if (err.message.includes('NotFoundError')) {
-            message = 'No camera found on this device.';
-          }
-        }
-        addToast(message, 'error');
+        addToast('⚠️ Camera access required', 'error');
       }
     };
 
     startScanner();
 
     return () => {
-      if (cooldownTimeoutRef.current) {
-        clearTimeout(cooldownTimeoutRef.current);
-      }
+      if (cooldownTimeoutRef.current) clearTimeout(cooldownTimeoutRef.current);
       if (html5QrCode && html5QrCode.isScanning) {
         html5QrCode.stop().catch(console.error);
       }
@@ -153,68 +145,113 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
   }, [processBarcode, addToast]);
 
   const handleStop = useCallback(() => {
-    if (scannerRef.current && scannerRef.current.isScanning) {
-      scannerRef.current.stop().then(() => {
-        onStop();
-      }).catch((err) => {
-        console.error('Error stopping scanner:', err);
-        onStop();
-      });
+    if (scannerRef.current?.isScanning) {
+      scannerRef.current.stop().catch(console.error).finally(onStop);
     } else {
       onStop();
     }
   }, [onStop]);
 
   return (
-    <div className="min-h-screen w-full flex flex-col" style={{ background: 'var(--color-bg)' }}>
-      {/* Toast Container */}
-      <div className="toast-container">
-        {toasts.map(toast => (
-          <div key={toast.id} className={`toast toast-${toast.type}`}>
-            {toast.type === 'loading' && <div className="spinner" />}
-            <span>{toast.message}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Header */}
-      <div className="p-4 text-center">
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>Scan Books</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>Point at ISBN barcode</p>
-      </div>
-
-      {/* Scanner Container */}
-      <div className="flex-1 flex items-center justify-center px-4">
-        <div className="w-full max-w-md">
-          <div
-            id="reader"
-            className="rounded-2xl overflow-hidden glass"
-            style={{ minHeight: '300px' }}
-          />
-          {!isInitialized && (
-            <div className="flex items-center justify-center mt-4">
-              <div className="spinner" />
-              <span className="ml-3" style={{ color: 'var(--color-text-muted)' }}>Starting camera...</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Book count indicator */}
-      <div className="text-center py-2">
-        <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          {existingISBNs.length} book{existingISBNs.length !== 1 ? 's' : ''} in library
-        </span>
-      </div>
-
-      {/* Stop Button */}
-      <div className="p-6 pb-10">
+    <div className="fixed inset-0 z-50 flex flex-col bg-black">
+      {/* Top Bar */}
+      <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-20 bg-gradient-to-b from-black/80 to-transparent">
         <button
           onClick={handleStop}
-          className="w-full py-4 btn-primary font-semibold rounded-full text-lg shadow-lg transition-all duration-300 active:scale-98"
+          className="p-2 rounded-full bg-black/40 text-white backdrop-blur-md"
         >
-          View Library ({existingISBNs.length})
+          <ArrowLeft className="w-6 h-6" />
         </button>
+        <div className="px-4 py-1 rounded-full bg-black/40 backdrop-blur-md">
+          <span className="text-white text-sm font-medium">Scan Barcode</span>
+        </div>
+        <div className="w-10" /> {/* Spacer */}
+      </div>
+
+      {/* Main Scanner Area */}
+      <div className="relative flex-1 bg-black">
+        <div
+          id="reader"
+          className="w-full h-full [&>video]:object-cover"
+        />
+
+        {/* Visual Guides */}
+        {isInitialized && (
+          <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+            {/* Scan Frame */}
+            <div className={`w-[70%] aspect-[1/1] border-2 rounded-3xl transition-colors duration-300 relative ${isScanningActive ? 'border-white/50' : 'border-emerald-500/80'
+              }`}>
+              {/* Corner Markers */}
+              <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-2xl -mt-[2px] -ml-[2px]" />
+              <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-2xl -mt-[2px] -mr-[2px]" />
+              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-2xl -mb-[2px] -ml-[2px]" />
+              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-2xl -mb-[2px] -mr-[2px]" />
+
+              {/* Pulse Scanner Line */}
+              {isScanningActive && (
+                <div className="absolute left-0 right-0 h-0.5 bg-red-500/80 shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-scan-line top-1/2" />
+              )}
+            </div>
+
+            <p className="mt-8 text-white/80 text-sm font-medium tracking-wide">
+              {isScanningActive ? 'Align barcode within frame' : 'Processing...'}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Sheet - Last Scanned / Controls */}
+      <div className="bg-white rounded-t-3xl p-6 pb-8 min-h-[180px] shadow-[0_-4px_20px_rgba(0,0,0,0.2)] z-20">
+        {lastScannedBook ? (
+          <div className="animate-slide-up">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle className="w-5 h-5 text-emerald-500" />
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Added to Library</span>
+            </div>
+            <div className="flex gap-4">
+              <img
+                src={lastScannedBook.coverUrl || 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&q=80&w=200'}
+                alt={lastScannedBook.title}
+                className="w-16 h-24 object-cover rounded-md shadow-sm bg-gray-100"
+              />
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-gray-900 leading-tight truncate">{lastScannedBook.title}</h3>
+                <p className="text-gray-500 text-sm truncate">{lastScannedBook.authors.join(', ')}</p>
+                <div className="mt-3 flex gap-2">
+                  <span className="px-2 py-1 bg-gray-100 rounded text-xs text-gray-600 font-medium">
+                    Ready for next book...
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full py-4 space-y-3">
+            <p className="text-gray-400 text-sm text-center">
+              Scan your books one by one.<br />They will be added automatically.
+            </p>
+            <div className="animate-pulse bg-gray-200 h-12 w-12 rounded-full" />
+          </div>
+        )}
+
+        <button
+          onClick={handleStop}
+          className="w-full mt-6 py-3 bg-gray-900 text-white rounded-xl font-semibold shadow-lg active:scale-98 transition-transform"
+        >
+          Done ({existingISBNs.length} books)
+        </button>
+      </div>
+
+      {/* Toast Overlay */}
+      <div className="fixed top-20 left-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+        {toasts.map(toast => (
+          <div key={toast.id} className={`p-4 rounded-xl shadow-xl flex items-center justify-center backdrop-blur-md animate-slide-down ${toast.type === 'error' ? 'bg-red-500/90 text-white' :
+              toast.type === 'success' ? 'bg-emerald-500/90 text-white' :
+                'bg-black/80 text-white'
+            }`}>
+            <span className="font-medium text-center">{toast.message}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

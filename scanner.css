@@ -202,3 +202,28 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Scan line animation */
+@keyframes scan-line {
+  0% {
+    top: 5%;
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    top: 95%;
+    opacity: 0;
+  }
+}
+
+.animate-scan-line {
+  animation: scan-line 2s linear infinite;
+}

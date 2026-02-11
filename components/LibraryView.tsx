@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Book, ReadingStatus } from '../types';
 import { GridIcon } from './icons/GridIcon';
 import { ListIcon } from './icons/ListIcon';
 import { SearchIcon } from './icons/SearchIcon';
 import { PlusIcon } from './icons/PlusIcon';
-import { BookOpen, Book as BookIcon, CheckCircle, Heart, Library, Edit2, Camera, BarChart3 } from 'lucide-react';
+import { BookOpen, Book as BookIcon, CheckCircle, Heart, Library, Edit2, Camera, BarChart3, ZoomIn } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import BookCard from './BookCard';
 import BookListItem from './BookListItem';
@@ -50,6 +50,12 @@ const LibraryView: React.FC<LibraryViewProps> = ({
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [showFabMenu, setShowFabMenu] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
+
+  // Dynamic Grid State
+  const [gridCols, setGridCols] = useState(2);
+  const [isPinching, setIsPinching] = useState(false);
+  const initialPinchDistance = useRef<number | null>(null);
+  const lastUpdateRef = useRef<number>(0);
 
   // Stats
   const stats = useMemo(() => ({
@@ -122,8 +128,59 @@ const LibraryView: React.FC<LibraryViewProps> = ({
     }
   };
 
+  // Pinch to Zoom Logic
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      initialPinchDistance.current = dist;
+      setIsPinching(true);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && initialPinchDistance.current !== null && viewMode === 'grid') {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+
+      const delta = dist - initialPinchDistance.current;
+      const now = Date.now();
+
+      // Debounce updates to avoid flickering, but allow smooth enough transitions
+      if (now - lastUpdateRef.current > 300) {
+        if (delta > 60) { // Pinch Out (Zoom In) -> Fewer Columns
+          setGridCols(prev => Math.max(1, prev - 1));
+          initialPinchDistance.current = dist; // Reset base
+          lastUpdateRef.current = now;
+        } else if (delta < -60) { // Pinch In (Zoom Out) -> More Columns
+          setGridCols(prev => Math.min(6, prev + 1));
+          initialPinchDistance.current = dist; // Reset base
+          lastUpdateRef.current = now;
+        }
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsPinching(false);
+    initialPinchDistance.current = null;
+  };
+
+  // Determine grid class dynamically
+  const gridClass = `grid gap-4 grid-cols-${gridCols}`;
+
   return (
-    <div className="min-h-screen pb-32" style={{ background: 'var(--color-bg)' }}>
+    <div
+      className="min-h-screen pb-32 transition-colors duration-300"
+      style={{ background: 'var(--color-bg)' }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Compact Header */}
       <header className="sticky top-0 z-20 backdrop-blur-xl border-b"
         style={{
@@ -183,7 +240,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({
             </div>
           </div>
 
-          {/* Search Bar - Collapsible */}
+          {/* Search Bar & Stats */}
           {showSearch && (
             <div className="mb-4 animate-slide-down">
               <input
@@ -198,7 +255,6 @@ const LibraryView: React.FC<LibraryViewProps> = ({
             </div>
           )}
 
-          {/* Filter Pills - Horizontal Scroll */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-4 px-4">
             {FILTER_OPTIONS.map(opt => {
               const count = filterCounts[opt.value as keyof typeof filterCounts] || 0;
@@ -220,23 +276,32 @@ const LibraryView: React.FC<LibraryViewProps> = ({
             })}
           </div>
 
-          {/* Sort Pills */}
-          <div className="flex items-center gap-2 mt-3 overflow-x-auto scrollbar-hide -mx-4 px-4">
-            <span className="text-xs flex-shrink-0" style={{ color: 'var(--color-text-muted)' }}>Sort:</span>
-            {(['dateAdded', 'title', 'author', 'rating'] as SortKey[]).map(key => (
-              <button
-                key={key}
-                onClick={() => handleSortChange(key)}
-                className={`px-3 py-1 text-xs rounded-full transition whitespace-nowrap ${sortKey === key ? 'glass' : ''
-                  }`}
-                style={{
-                  color: sortKey === key ? 'var(--color-text)' : 'var(--color-text-muted)'
-                }}
-              >
-                {key === 'dateAdded' ? 'Recent' : key.charAt(0).toUpperCase() + key.slice(1)}
-                {sortKey === key && (sortAsc ? ' ↑' : ' ↓')}
-              </button>
-            ))}
+          <div className="flex items-center justify-between mt-3">
+            {/* Sort Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4">
+              <span className="text-xs flex-shrink-0" style={{ color: 'var(--color-text-muted)' }}>Sort:</span>
+              {(['dateAdded', 'title', 'author', 'rating'] as SortKey[]).map(key => (
+                <button
+                  key={key}
+                  onClick={() => handleSortChange(key)}
+                  className={`px-3 py-1 text-xs rounded-full transition whitespace-nowrap ${sortKey === key ? 'glass' : ''
+                    }`}
+                  style={{
+                    color: sortKey === key ? 'var(--color-text)' : 'var(--color-text-muted)'
+                  }}
+                >
+                  {key === 'dateAdded' ? 'Recent' : key.charAt(0).toUpperCase() + key.slice(1)}
+                  {sortKey === key && (sortAsc ? ' ↑' : ' ↓')}
+                </button>
+              ))}
+            </div>
+
+            {/* Grid Size Indicator (Helper) */}
+            {viewMode === 'grid' && (
+              <span className="text-[10px] opacity-50 whitespace-nowrap px-4 animate-fade-in" style={{ color: 'var(--color-text-secondary)' }}>
+                Pinch to resize ({gridCols})
+              </span>
+            )}
           </div>
         </div>
       </header>
@@ -245,7 +310,12 @@ const LibraryView: React.FC<LibraryViewProps> = ({
       <main className="px-4 pt-6">
         {filteredAndSortedBooks.length > 0 ? (
           viewMode === 'grid' ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            <div
+              className="grid gap-4 transition-all duration-300 ease-in-out"
+              style={{
+                gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`
+              }}
+            >
               {filteredAndSortedBooks.map(book => (
                 <BookCard
                   key={book.isbn}
