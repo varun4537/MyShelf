@@ -135,7 +135,12 @@ const App: React.FC = () => {
 
     switch (view) {
       case 'splash':
-        return <SplashScreen onStart={() => setView('scanner')} />;
+        return (
+          <SplashScreen
+            onStart={() => setView('scanner')}
+            onLibrary={() => setView('library')}
+          />
+        );
       case 'scanner':
         return (
           <ScannerView
@@ -172,7 +177,12 @@ const App: React.FC = () => {
           />
         );
       default:
-        return <SplashScreen onStart={() => setView('scanner')} />;
+        return (
+          <SplashScreen
+            onStart={() => setView('scanner')}
+            onLibrary={() => setView('library')}
+          />
+        );
     }
   };
 
