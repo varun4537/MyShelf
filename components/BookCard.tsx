@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { Heart, Trash2 } from 'lucide-react';
 import { Book, ReadingStatus } from '../types';
 
 interface BookCardProps {
@@ -56,29 +57,33 @@ const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate, onClick }
           style={{ boxShadow: 'inset 0 0 20px rgba(0,0,0,0.1)' }}
         />
 
-        {/* Favorite Badge - Top Right */}
-
-        {/* Favorite Badge - Top Right */}
-        {book.favorite && (
-          <div className="absolute top-2 right-2 text-lg drop-shadow-md animate-pulse-slow">
-            ❤️
+        {/* Status Badge (Top Left) */}
+        <div className="absolute top-2 left-2">
+          <div className="bg-black/40 backdrop-blur-md px-2 py-1 rounded-md text-xs font-medium text-white shadow-sm border border-white/10">
+            {STATUS_EMOJI[book.status]}
           </div>
-        )}
+        </div>
+
+        {/* Favorite Button (Top Right) */}
+        <button
+          onClick={handleFavoriteClick}
+          className={`absolute top-2 right-2 p-2 rounded-full backdrop-blur-md transition-all duration-300 ${book.favorite
+            ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30'
+            : 'bg-black/40 text-white/70 hover:bg-black/60 hover:text-white'
+            }`}
+        >
+          <Heart
+            size={18}
+            fill={book.favorite ? "currentColor" : "none"}
+            strokeWidth={2.5}
+          />
+        </button>
 
         {/* Gradient Overlay - Smooth readability gradient */}
-        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-        <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
-          {/* Favorite Button */}
-          <button
-            onClick={handleFavoriteClick}
-            className="w-8 h-8 glass rounded-full flex items-center justify-center hover:scale-110 shadow-lg text-white"
-            style={{ backdropFilter: 'blur(4px)' }}
-          >
-            {book.favorite ? '❤️' : '🤍'}
-          </button>
-
-          {/* Delete Button */}
+        {/* Delete Button (Bottom Right) */}
+        <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -86,10 +91,10 @@ const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate, onClick }
                 onDelete(book.isbn);
               }
             }}
-            className="w-8 h-8 glass rounded-full flex items-center justify-center hover:scale-110 shadow-lg bg-red-500/20 hover:bg-red-500/40 text-white"
+            className="p-2.5 glass rounded-full flex items-center justify-center hover:scale-110 shadow-lg bg-white/10 hover:bg-red-500/20 hover:text-red-500 text-white/80 transition-colors border border-white/10"
             style={{ backdropFilter: 'blur(4px)' }}
           >
-            🗑️
+            <Trash2 size={18} />
           </button>
         </div>
       </div>

@@ -3,7 +3,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { fetchBookByISBN } from '../services/geminiService';
 import { Book } from '../types';
 import { isValidISBN } from '../utils/isbn';
-import { CheckCircle, X } from 'lucide-react';
+import { CheckCircle, X, ArrowLeft } from 'lucide-react';
 import '../scanner.css';
 
 interface ScannerViewProps {
@@ -26,11 +26,21 @@ interface Toast {
 const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingISBNs }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [lastScannedBook, setLastScannedBook] = useState<Book | null>(null);
   const [isScanningActive, setIsScanningActive] = useState(true);
+
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isProcessingRef = useRef(false);
   const lastScannedRef = useRef<string>('');
   const cooldownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // LIVE REFERENCE to books to prevent effect re-runs
+  const existingISBNsRef = useRef(existingISBNs);
+
+  // Keep ref in sync with prop
+  useEffect(() => {
+    existingISBNsRef.current = existingISBNs;
+  }, [existingISBNs]);
 
   const addToast = useCallback((message: string, type: Toast['type']) => {
     const id = Date.now();
@@ -48,21 +58,34 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
   }, []);
 
   const processBarcode = useCallback(async (isbn: string) => {
-    if (isProcessingRef.current || lastScannedRef.current === isbn) return;
+    // Prevent duplicate processing
+    if (isProcessingRef.current || lastScannedRef.current === isbn) {
+      return;
+    }
 
-    if (existingISBNs.includes(isbn)) {
+    // Check against REF instead of prop to avoid dependency changes
+    if (existingISBNsRef.current.includes(isbn)) {
       addToast(`📚 Already in your shelf`, 'error');
       lastScannedRef.current = isbn;
-      cooldownTimeoutRef.current = setTimeout(() => { lastScannedRef.current = ''; }, 2000);
+      cooldownTimeoutRef.current = setTimeout(() => {
+        lastScannedRef.current = '';
+      }, 2000);
       return;
     }
 
     if (!isValidISBN(isbn)) return;
 
+    // Pause the scanner while processing
+    try {
+      await scannerRef.current?.pause();
+    } catch (err) {
+      console.error('Failed to pause scanner:', err);
+    }
+
     isProcessingRef.current = true;
     setIsScanningActive(false);
     lastScannedRef.current = isbn;
-    const loadingToastId = addToast(`🔍 Finding book...`, 'loading');
+    const loadingToastId = addToast(`🔍 Finding: ${isbn}`, 'loading'); // Show ISBN for feedback
 
     if (navigator.vibrate) navigator.vibrate(50);
 
@@ -72,6 +95,7 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
 
       if (book) {
         onAddBook(book);
+        setLastScannedBook(book);
         addToast(`✅ Added: ${book.title}`, 'success');
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
       } else {
@@ -82,28 +106,35 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
       console.error('Error processing barcode:', error);
       addToast(`❌ Error looking up book`, 'error');
     } finally {
+      // Resume the scanner after processing
+      try {
+        await scannerRef.current?.resume();
+      } catch (err) {
+        console.error('Failed to resume scanner:', err);
+      }
+
+      // Shorter cooldown for snappier feel
       cooldownTimeoutRef.current = setTimeout(() => {
         isProcessingRef.current = false;
         setIsScanningActive(true);
-      }, 1500);
+        lastScannedRef.current = '';
+      }, 1000);
     }
-  }, [existingISBNs, onAddBook, addToast, removeToast]);
+  }, [onAddBook, addToast, removeToast]); // Removed existingISBNs dependency
 
   useEffect(() => {
     let html5QrCode: Html5Qrcode | null = null;
+    const qrBoxSize = Math.min(window.innerWidth * 0.7, 280);
 
     const startScanner = async () => {
       try {
         html5QrCode = new Html5Qrcode('reader');
         scannerRef.current = html5QrCode;
 
-        // Use a square box relative to screen width
-        const qrBoxSize = Math.min(window.innerWidth * 0.7, 280);
-
         const config = {
           fps: 15,
           qrbox: { width: qrBoxSize, height: qrBoxSize },
-          aspectRatio: window.innerHeight / window.innerWidth, // Important for full height
+          aspectRatio: window.innerWidth / window.innerHeight,
           formatsToSupport: [0], // EAN_13
         };
 
@@ -126,10 +157,11 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
     return () => {
       if (cooldownTimeoutRef.current) clearTimeout(cooldownTimeoutRef.current);
       if (html5QrCode && html5QrCode.isScanning) {
+        // Only stop if we are actually unmounting the component
         html5QrCode.stop().catch(console.error);
       }
     };
-  }, [processBarcode, addToast]);
+  }, [processBarcode, addToast]); // processBarcode is now stable!
 
   const handleStop = useCallback(() => {
     if (scannerRef.current?.isScanning) {
@@ -140,48 +172,50 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
   }, [onStop]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col">
-      {/* Top Bar - Minimal */}
-      <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-20 pointer-events-none">
+    <div className="fixed inset-0 z-50 flex flex-col bg-black">
+      {/* Top Bar */}
+      <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-20 bg-gradient-to-b from-black/80 to-transparent">
         <button
           onClick={handleStop}
-          className="pointer-events-auto p-3 rounded-full bg-black/40 text-white backdrop-blur-md hover:bg-black/60 transition-colors"
+          className="p-2 rounded-full bg-black/40 text-white backdrop-blur-md"
         >
-          <X className="w-6 h-6" />
+          <ArrowLeft className="w-6 h-6" />
         </button>
-        <div className="bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full">
-          <span className="text-white/90 text-sm font-medium tracking-wide">Scan ISBN</span>
+        <div className="px-4 py-1 rounded-full bg-black/40 backdrop-blur-md">
+          <span className="text-white text-sm font-medium">Scan Barcode</span>
         </div>
-        <div className="w-12" /> {/* Balance spacer */}
+        <div className="w-10" />
       </div>
 
-      {/* Main Scanner Viewport */}
-      <div className="relative flex-1 bg-black overflow-hidden">
+      {/* Main Scanner Area */}
+      <div className="relative flex-1 bg-black">
         <div
           id="reader"
-          className="w-full h-full [&>video]:object-cover [&>video]:w-full [&>video]:h-full"
+          className="w-full h-full [&>video]:object-cover"
         />
 
-        {/* Visual Overlay */}
+        {/* Visual Guides */}
         {isInitialized && (
           <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
-            {/* Scan Frame */}
-            <div className={`w-[70%] aspect-[1/1] border-2 rounded-3xl transition-all duration-300 relative ${isScanningActive ? 'border-white/40 scale-100' : 'border-emerald-500 scale-105 shadow-[0_0_30px_rgba(16,185,129,0.3)]'
-              }`}>
-              {/* Corners */}
-              <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-white rounded-tl-2xl -mt-1 -ml-1" />
-              <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-white rounded-tr-2xl -mt-1 -mr-1" />
-              <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-white rounded-bl-2xl -mb-1 -ml-1" />
-              <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-white rounded-br-2xl -mb-1 -mr-1" />
+            {/* Scan Frame with Fixed Max Width to match Scanner Config */}
+            <div
+              className={`w-[70%] max-w-[280px] aspect-[1/1] border-2 rounded-3xl transition-colors duration-300 relative ${isScanningActive ? 'border-white/50' : 'border-emerald-500/80'
+                }`}
+            >
+              {/* Corner Markers */}
+              <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-2xl -mt-[2px] -ml-[2px]" />
+              <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-2xl -mt-[2px] -mr-[2px]" />
+              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-2xl -mb-[2px] -ml-[2px]" />
+              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-2xl -mb-[2px] -mr-[2px]" />
 
-              {/* Laser Line */}
+              {/* Pulse Scanner Line */}
               {isScanningActive && (
-                <div className="absolute left-2 right-2 h-0.5 bg-red-500/80 shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-scan-line" />
+                <div className="absolute left-0 right-0 h-0.5 bg-red-500/80 shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-scan-line top-1/2" />
               )}
             </div>
 
-            <p className="mt-8 text-white/70 text-sm font-medium tracking-wider uppercase">
-              {isScanningActive ? 'Align Barcode' : 'Processing...'}
+            <p className="mt-8 text-white/80 text-sm font-medium tracking-wide">
+              {isScanningActive ? 'Align barcode within frame' : 'Processing...'}
             </p>
           </div>
         )}
@@ -207,8 +241,8 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
       <div className="fixed top-24 left-0 right-0 z-50 flex flex-col items-center gap-2 pointer-events-none px-4">
         {toasts.map(toast => (
           <div key={toast.id} className={`px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 backdrop-blur-xl animate-slide-down ${toast.type === 'error' ? 'bg-red-500/90 text-white' :
-              toast.type === 'success' ? 'bg-emerald-500/90 text-white' :
-                'bg-zinc-800/90 text-white'
+            toast.type === 'success' ? 'bg-emerald-500/90 text-white' :
+              'bg-zinc-800/90 text-white'
             }`}>
             {toast.type === 'success' && <CheckCircle className="w-4 h-4" />}
             <span className="font-medium text-sm">{toast.message}</span>
