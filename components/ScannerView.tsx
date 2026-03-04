@@ -33,6 +33,7 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
   const isProcessingRef = useRef(false);
   const lastScannedRef = useRef<string>('');
   const cooldownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scannerInitializedRef = useRef(false);
 
   // LIVE REFERENCE to books to prevent effect re-runs
   const existingISBNsRef = useRef(existingISBNs);
@@ -41,6 +42,10 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
   useEffect(() => {
     existingISBNsRef.current = existingISBNs;
   }, [existingISBNs]);
+
+  // Stable refs for callbacks to avoid effect re-runs
+  const onAddBookRef = useRef(onAddBook);
+  useEffect(() => { onAddBookRef.current = onAddBook; }, [onAddBook]);
 
   const addToast = useCallback((message: string, type: Toast['type']) => {
     const id = Date.now();
@@ -57,6 +62,12 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  const addToastRef = useRef(addToast);
+  useEffect(() => { addToastRef.current = addToast; }, [addToast]);
+  const removeToastRef = useRef(removeToast);
+  useEffect(() => { removeToastRef.current = removeToast; }, [removeToast]);
+
+  // Stable processBarcode via ref — never changes, so it never triggers effect re-runs
   const processBarcode = useCallback(async (isbn: string) => {
     // Prevent duplicate processing
     if (isProcessingRef.current || lastScannedRef.current === isbn) {
@@ -65,7 +76,7 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
 
     // Check against REF instead of prop to avoid dependency changes
     if (existingISBNsRef.current.includes(isbn)) {
-      addToast(`📚 Already in your shelf`, 'error');
+      addToastRef.current(`📚 Already in your shelf`, 'error');
       lastScannedRef.current = isbn;
       cooldownTimeoutRef.current = setTimeout(() => {
         lastScannedRef.current = '';
@@ -75,9 +86,11 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
 
     if (!isValidISBN(isbn)) return;
 
-    // Pause the scanner while processing
+    // Pause the scanner while processing (synchronous call)
     try {
-      await scannerRef.current?.pause();
+      if (scannerRef.current?.isScanning) {
+        scannerRef.current.pause(true);
+      }
     } catch (err) {
       console.error('Failed to pause scanner:', err);
     }
@@ -85,30 +98,32 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
     isProcessingRef.current = true;
     setIsScanningActive(false);
     lastScannedRef.current = isbn;
-    const loadingToastId = addToast(`🔍 Finding: ${isbn}`, 'loading'); // Show ISBN for feedback
+    const loadingToastId = addToastRef.current(`🔍 Finding: ${isbn}`, 'loading');
 
     if (navigator.vibrate) navigator.vibrate(50);
 
     try {
       const book = await fetchBookByISBN(isbn);
-      removeToast(loadingToastId);
+      removeToastRef.current(loadingToastId);
 
       if (book) {
-        onAddBook(book);
+        onAddBookRef.current(book);
         setLastScannedBook(book);
-        addToast(`✅ Added: ${book.title}`, 'success');
+        addToastRef.current(`✅ Added: ${book.title}`, 'success');
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
       } else {
-        addToast(`❌ Book not found`, 'error');
+        addToastRef.current(`❌ Book not found`, 'error');
       }
     } catch (error) {
-      removeToast(loadingToastId);
+      removeToastRef.current(loadingToastId);
       console.error('Error processing barcode:', error);
-      addToast(`❌ Error looking up book`, 'error');
+      addToastRef.current(`❌ Error looking up book`, 'error');
     } finally {
-      // Resume the scanner after processing
+      // Resume the scanner after processing (synchronous call)
       try {
-        await scannerRef.current?.resume();
+        if (scannerRef.current?.isScanning) {
+          scannerRef.current.resume();
+        }
       } catch (err) {
         console.error('Failed to resume scanner:', err);
       }
@@ -120,13 +135,26 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
         lastScannedRef.current = '';
       }, 1000);
     }
-  }, [onAddBook, addToast, removeToast]); // Removed existingISBNs dependency
+  }, []); // Fully stable — all external values accessed via refs
 
   useEffect(() => {
+    // Guard against StrictMode double-mount: only initialize once
+    if (scannerInitializedRef.current) return;
+    scannerInitializedRef.current = true;
+
     let html5QrCode: Html5Qrcode | null = null;
+    let cancelled = false;
     const qrBoxSize = Math.min(window.innerWidth * 0.7, 280);
 
     const startScanner = async () => {
+      // Small delay to let DOM settle (especially after StrictMode remount)
+      await new Promise(r => setTimeout(r, 100));
+      if (cancelled) return;
+
+      // Clear any leftover DOM content from previous mount
+      const readerEl = document.getElementById('reader');
+      if (readerEl) readerEl.innerHTML = '';
+
       try {
         html5QrCode = new Html5Qrcode('reader');
         scannerRef.current = html5QrCode;
@@ -145,23 +173,31 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
           () => { }
         );
 
+        if (cancelled) {
+          // Component unmounted during async start
+          html5QrCode.stop().catch(console.error);
+          return;
+        }
+
         setIsInitialized(true);
       } catch (err) {
         console.error('Failed to start scanner:', err);
-        addToast('⚠️ Camera access required', 'error');
+        if (!cancelled) {
+          addToast('⚠️ Camera access required', 'error');
+        }
       }
     };
 
     startScanner();
 
     return () => {
+      cancelled = true;
       if (cooldownTimeoutRef.current) clearTimeout(cooldownTimeoutRef.current);
       if (html5QrCode && html5QrCode.isScanning) {
-        // Only stop if we are actually unmounting the component
         html5QrCode.stop().catch(console.error);
       }
     };
-  }, [processBarcode, addToast]); // processBarcode is now stable!
+  }, [processBarcode, addToast]); // processBarcode is now fully stable ([] deps)
 
   const handleStop = useCallback(() => {
     if (scannerRef.current?.isScanning) {

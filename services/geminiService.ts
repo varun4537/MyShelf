@@ -30,6 +30,7 @@ export async function fetchBookByISBN(isbn: string): Promise<Book | null> {
       coverUrl: data.coverUrl || `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`,
       dateAdded: new Date().toISOString(),
       pageCount: data.pageCount || 0,
+      source: data.source,
       publisher: data.publisher,
       publishYear: data.publishYear,
       language: data.language,

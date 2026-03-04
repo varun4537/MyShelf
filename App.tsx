@@ -22,7 +22,7 @@ type View = 'login' | 'splash' | 'scanner' | 'library' | 'settings' | 'stats';
  * Main Application Component
  * 
  * Orchestrates the primary view navigation and manages the global state
- * of the book collection using LocalStorage.
+ * of the book collection via the remote Vercel KV API.
  */
 const App: React.FC = () => {
   const [authToken, setAuthToken] = useState<string | null>(getAuthToken());

@@ -51,6 +51,7 @@ export const migrateBook = (book: any): Book => ({
   rating: book.rating ?? null,
   notes: book.notes || '',
   favorite: book.favorite || false,
+  source: book.source,
   publisher: book.publisher,
   publishYear: book.publishYear,
   language: book.language,

@@ -9,11 +9,13 @@ const ISBNS = [
     '9781250846402', '9780765336460'
 ];
 
-const REDIS_URL = process.env.REDIS_URL;
 const AUTH_HEADER = 'Bearer ' + Buffer.from('Mybooks:quickscan123').toString('base64');
 
 async function directImport() {
     console.log(`Starting direct import of ${ISBNS.length} ISBNs to Redis...\n`);
+
+    let successCount = 0;
+    let failCount = 0;
 
     for (const isbn of ISBNS) {
         // Create minimal book object
@@ -33,7 +35,7 @@ async function directImport() {
         };
 
         try {
-            const response = await fetch('https://my-shelf-bery.vercel.app/api/library', {
+            const response = await fetch('https://my-shelf-beryl.vercel.app/api/library', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -42,23 +44,30 @@ async function directImport() {
                 body: JSON.stringify(book)
             });
 
+            const responseText = await response.text();
+
             if (response.ok) {
                 console.log(`✅ Added ISBN: ${isbn}`);
+                successCount++;
             } else if (response.status === 200) {
                 console.log(`ℹ️  Already exists: ${isbn}`);
+                successCount++;
             } else {
-                console.log(`❌ Failed: ${isbn} (${response.status})`);
+                console.log(`❌ Failed: ${isbn} (${response.status}) - ${responseText}`);
+                failCount++;
             }
         } catch (error) {
             console.error(`❌ Error adding ${isbn}:`, error.message);
+            failCount++;
         }
 
         // Small delay to be polite
         await new Promise(resolve => setTimeout(resolve, 200));
     }
 
-    console.log('\nImport complete! Log in to your app to see the books.');
-    console.log('You can edit titles, authors, and other details in the app.');
+    console.log(`\nImport Complete!`);
+    console.log(`Success: ${successCount}`);
+    console.log(`Failed: ${failCount}`);
 }
 
 directImport();

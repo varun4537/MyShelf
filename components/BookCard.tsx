@@ -60,7 +60,7 @@ const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate, onClick }
         {/* Status Badge (Top Left) */}
         <div className="absolute top-2 left-2">
           <div className="bg-black/40 backdrop-blur-md px-2 py-1 rounded-md text-xs font-medium text-white shadow-sm border border-white/10">
-            {STATUS_EMOJI[book.status]}
+            {STATUS_EMOJI[book.readingStatus]}
           </div>
         </div>
 

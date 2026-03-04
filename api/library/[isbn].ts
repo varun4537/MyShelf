@@ -1,51 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@vercel/kv';
 import type { Book } from '../../types';
-
-const LIBRARY_KEY = 'myshelf:library';
-
-// Support both Vercel KV env vars and REDIS_URL
-const getKVClient = () => {
-    // If standard Vercel KV vars exist, use them
-    if (process.env.KV_REST_API_URL) {
-        return createClient({
-            url: process.env.KV_REST_API_URL,
-            token: process.env.KV_REST_API_TOKEN || ''
-        });
-    }
-
-    // Parse REDIS_URL (format: redis://default:TOKEN@HOST:PORT)
-    const redisUrl = process.env.REDIS_URL;
-    if (!redisUrl) {
-        throw new Error('No KV/Redis URL configured');
-    }
-
-    // Parse redis:// URL
-    const match = redisUrl.match(/redis:\/\/default:([^@]+)@([^:]+):(\d+)/);
-    if (!match) {
-        throw new Error('Invalid REDIS_URL format');
-    }
-
-    const [, token, host, port] = match;
-    const httpsUrl = `https://${host}:${port}`;
-
-    return createClient({ url: httpsUrl, token });
-};
-
-const kv = getKVClient();
-
-const isAuthorized = (req: VercelRequest) => {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) return false;
-
-    const [username, password] = Buffer.from(token, 'base64').toString('utf-8').split(':');
-    return username === process.env.APP_USER && password === process.env.APP_PASS;
-};
-
-const getLibrary = async (): Promise<Book[]> => {
-    const stored = await kv.get<Book[]>(LIBRARY_KEY);
-    return stored || [];
-};
+import { isAuthorized, getLibrary, saveLibrary } from '../lib/kv';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -73,14 +28,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const library = await getLibrary();
         const updated = library.map(book => (book.isbn === isbn ? updatedBook : book));
-        await kv.set(LIBRARY_KEY, updated);
+        await saveLibrary(updated);
         return res.status(200).json({ status: 'updated' });
     }
 
     if (req.method === 'DELETE') {
         const library = await getLibrary();
         const updated = library.filter(book => book.isbn !== isbn);
-        await kv.set(LIBRARY_KEY, updated);
+        await saveLibrary(updated);
         return res.status(200).json({ status: 'deleted' });
     }
 

@@ -19,16 +19,43 @@ export const exportToJSON = (books: Book[]) => {
 export const exportToCSV = (books: Book[]) => {
     if (books.length === 0) return;
 
-    const headers = ['isbn', 'title', 'authors', 'genre', 'dateAdded', 'description', 'pageCount', 'coverUrl'];
+    // Include all book fields including V2 fields
+    const headers = [
+        'isbn', 'title', 'authors', 'genre', 'dateAdded', 'description', 
+        'pageCount', 'coverUrl', 'readingStatus', 'rating', 'notes', 
+        'favorite', 'publisher', 'publishYear', 'language', 'series', 'seriesOrder'
+    ];
     const csvRows = [headers.join(',')];
 
-    books.forEach(book => {
-        const authors = `"${book.authors.join(', ')}"`;
-        const genre = `"${book.genre.join(', ')}"`;
-        const title = `"${book.title.replace(/"/g, '""')}"`;
-        const description = `"${book.description.replace(/"/g, '""')}"`;
+    const escapeCSV = (value: string | number | boolean | null | undefined): string => {
+        if (value === null || value === undefined) return '""';
+        const str = String(value);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`;
+        }
+        return `"${str}"`;
+    };
 
-        const row = [book.isbn, title, authors, genre, book.dateAdded, description, book.pageCount, book.coverUrl];
+    books.forEach(book => {
+        const row = [
+            escapeCSV(book.isbn),
+            escapeCSV(book.title),
+            escapeCSV(book.authors.join(', ')),
+            escapeCSV(book.genre.join(', ')),
+            escapeCSV(book.dateAdded),
+            escapeCSV(book.description),
+            escapeCSV(book.pageCount),
+            escapeCSV(book.coverUrl),
+            escapeCSV(book.readingStatus),
+            escapeCSV(book.rating),
+            escapeCSV(book.notes),
+            escapeCSV(book.favorite),
+            escapeCSV(book.publisher || ''),
+            escapeCSV(book.publishYear || ''),
+            escapeCSV(book.language || ''),
+            escapeCSV(book.series || ''),
+            escapeCSV(book.seriesOrder || ''),
+        ];
         csvRows.push(row.join(','));
     });
 

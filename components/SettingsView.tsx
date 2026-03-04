@@ -2,6 +2,7 @@ import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { Book } from '../types';
 import { exportToCSV, exportToJSON } from '../utils/export';
+import { clearAuthToken } from '../services/authService';
 
 interface SettingsViewProps {
     books: Book[];
@@ -48,6 +49,19 @@ const SettingsView: React.FC<SettingsViewProps> = ({ books, onBack, onClearData 
                     </svg>
                 </button>
                 <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>Settings</h1>
+                <button
+                  onClick={() => {
+                    clearAuthToken();
+                    window.location.reload();
+                  }}
+                  className="ml-auto w-10 h-10 glass-button rounded-full flex items-center justify-center hover:bg-red-500/20"
+                  title="Logout"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--color-text)' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 16a2 2 0 001.732-1A2 2 0 0118 13.732V12a2 2 0 01-3.732-1M7 16a2 2 0 11-4 0m4 0a2 2 0 10-4 0" />
+                  </svg>
+                </button>
             </div>
 
             {/* Appearance Section */}
