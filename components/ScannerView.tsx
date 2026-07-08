@@ -135,11 +135,11 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
       { facingMode: 'environment' },
       {
         fps: 15,
-        // Wide box shaped for barcodes: nearly full width, short height
+        // Large square detection zone — barcode can sit anywhere inside,
+        // no precise alignment needed
         qrbox: (viewfinderWidth, viewfinderHeight) => {
-          const width = Math.min(viewfinderWidth * 0.9, 600);
-          const height = Math.min(width * 0.45, viewfinderHeight * 0.5);
-          return { width, height };
+          const size = Math.min(viewfinderWidth * 0.92, viewfinderHeight * 0.65, 640);
+          return { width: size, height: size };
         },
         // Higher resolution feed makes small/curved barcodes legible
         videoConstraints: {
@@ -208,9 +208,9 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
         {/* Visual Guides */}
         {isInitialized && (
           <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
-            {/* Wide scan frame matching the barcode-shaped qrbox */}
+            {/* Large square scan frame matching the qrbox */}
             <div
-              className={`w-[90%] max-w-[600px] aspect-[20/9] border-2 rounded-3xl transition-colors duration-300 relative ${justDetected ? 'border-emerald-500/90' : 'border-white/50'
+              className={`w-[92%] max-w-[640px] max-h-[65vh] aspect-square border-2 rounded-3xl transition-colors duration-300 relative ${justDetected ? 'border-emerald-500/90' : 'border-white/50'
                 }`}
             >
               {/* Corner Markers */}
