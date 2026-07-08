@@ -87,3 +87,8 @@ async function importToRedis() {
 
     } catch (error) {
         console.error('❌ Import failed:', error.message);
+        process.exit(1);
+    }
+}
+
+importToRedis();

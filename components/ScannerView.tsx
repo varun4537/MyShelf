@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { fetchBookByISBN } from '../services/geminiService';
 import { Book } from '../types';
 import { isValidISBN } from '../utils/isbn';
-import { CheckCircle, X, ArrowLeft } from 'lucide-react';
+import { CheckCircle, ArrowLeft } from 'lucide-react';
 import '../scanner.css';
 
 interface ScannerViewProps {
@@ -18,42 +18,44 @@ interface Toast {
   type: 'success' | 'error' | 'loading';
 }
 
+// Ignore repeat decodes of the same barcode within this window
+const RESCAN_COOLDOWN_MS = 4000;
+
 /**
  * ScannerView Component
- * 
- * Minimalist UI: Full screen camera, transient toasts, shutter-style "Done" button.
+ *
+ * Continuous barcode scanner: the camera never pauses between books.
+ * Lookups run in the background while the user moves to the next barcode.
  */
 const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingISBNs }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [lastScannedBook, setLastScannedBook] = useState<Book | null>(null);
-  const [isScanningActive, setIsScanningActive] = useState(true);
+  const [justDetected, setJustDetected] = useState(false);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const isProcessingRef = useRef(false);
-  const lastScannedRef = useRef<string>('');
-  const cooldownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const scannerInitializedRef = useRef(false);
+  const toastIdRef = useRef(0);
+  const flashTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Per-ISBN dedup: timestamp of last handling, plus in-flight lookups
+  const recentScansRef = useRef<Map<string, number>>(new Map());
+  const inFlightRef = useRef<Set<string>>(new Set());
 
-  // LIVE REFERENCE to books to prevent effect re-runs
+  // LIVE REFERENCES to props to keep processBarcode stable across renders
   const existingISBNsRef = useRef(existingISBNs);
-
-  // Keep ref in sync with prop
   useEffect(() => {
     existingISBNsRef.current = existingISBNs;
   }, [existingISBNs]);
 
-  // Stable refs for callbacks to avoid effect re-runs
   const onAddBookRef = useRef(onAddBook);
   useEffect(() => { onAddBookRef.current = onAddBook; }, [onAddBook]);
 
   const addToast = useCallback((message: string, type: Toast['type']) => {
-    const id = Date.now();
+    const id = ++toastIdRef.current;
     setToasts(prev => [{ id, message, type }, ...prev].slice(0, 3));
     if (type !== 'loading') {
       setTimeout(() => {
         setToasts(prev => prev.filter(t => t.id !== id));
-      }, 3000);
+      }, 2500);
     }
     return id;
   }, []);
@@ -62,142 +64,115 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  const addToastRef = useRef(addToast);
-  useEffect(() => { addToastRef.current = addToast; }, [addToast]);
-  const removeToastRef = useRef(removeToast);
-  useEffect(() => { removeToastRef.current = removeToast; }, [removeToast]);
+  // Brief green flash of the scan frame to confirm a detection
+  const flashFrame = useCallback(() => {
+    setJustDetected(true);
+    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    flashTimeoutRef.current = setTimeout(() => setJustDetected(false), 600);
+  }, []);
 
-  // Stable processBarcode via ref — never changes, so it never triggers effect re-runs
-  const processBarcode = useCallback(async (isbn: string) => {
-    // Prevent duplicate processing
-    if (isProcessingRef.current || lastScannedRef.current === isbn) {
-      return;
-    }
-
-    // Check against REF instead of prop to avoid dependency changes
-    if (existingISBNsRef.current.includes(isbn)) {
-      addToastRef.current(`📚 Already in your shelf`, 'error');
-      lastScannedRef.current = isbn;
-      cooldownTimeoutRef.current = setTimeout(() => {
-        lastScannedRef.current = '';
-      }, 2000);
-      return;
-    }
-
+  const processBarcode = useCallback(async (decoded: string) => {
+    const isbn = decoded.trim();
     if (!isValidISBN(isbn)) return;
 
-    // Pause the scanner while processing (synchronous call)
-    try {
-      if (scannerRef.current?.isScanning) {
-        scannerRef.current.pause(true);
-      }
-    } catch (err) {
-      console.error('Failed to pause scanner:', err);
+    // Throttle repeat decodes of the same code (camera fires ~15 decodes/sec)
+    const now = Date.now();
+    const lastSeen = recentScansRef.current.get(isbn);
+    if (lastSeen && now - lastSeen < RESCAN_COOLDOWN_MS) return;
+    recentScansRef.current.set(isbn, now);
+
+    // Instant feedback: the barcode was captured
+    if (navigator.vibrate) navigator.vibrate(50);
+    flashFrame();
+
+    if (existingISBNsRef.current.includes(isbn)) {
+      addToast('📚 Already in your shelf', 'error');
+      return;
     }
 
-    isProcessingRef.current = true;
-    setIsScanningActive(false);
-    lastScannedRef.current = isbn;
-    const loadingToastId = addToastRef.current(`🔍 Finding: ${isbn}`, 'loading');
+    if (inFlightRef.current.has(isbn)) return;
+    inFlightRef.current.add(isbn);
 
-    if (navigator.vibrate) navigator.vibrate(50);
-
+    // Lookup runs in the background — scanning continues uninterrupted
+    const loadingToastId = addToast(`🔍 Finding: ${isbn}`, 'loading');
     try {
       const book = await fetchBookByISBN(isbn);
-      removeToastRef.current(loadingToastId);
+      removeToast(loadingToastId);
 
       if (book) {
         onAddBookRef.current(book);
         setLastScannedBook(book);
-        addToastRef.current(`✅ Added: ${book.title}`, 'success');
+        addToast(`✅ Added: ${book.title}`, 'success');
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
       } else {
-        addToastRef.current(`❌ Book not found`, 'error');
+        addToast('❌ Book not found', 'error');
+        recentScansRef.current.delete(isbn); // allow immediate retry
       }
     } catch (error) {
-      removeToastRef.current(loadingToastId);
+      removeToast(loadingToastId);
       console.error('Error processing barcode:', error);
-      addToastRef.current(`❌ Error looking up book`, 'error');
+      addToast('❌ Error looking up book', 'error');
+      recentScansRef.current.delete(isbn); // allow immediate retry
     } finally {
-      // Resume the scanner after processing (synchronous call)
-      try {
-        if (scannerRef.current?.isScanning) {
-          scannerRef.current.resume();
-        }
-      } catch (err) {
-        console.error('Failed to resume scanner:', err);
-      }
-
-      // Shorter cooldown for snappier feel
-      cooldownTimeoutRef.current = setTimeout(() => {
-        isProcessingRef.current = false;
-        setIsScanningActive(true);
-        lastScannedRef.current = '';
-      }, 1000);
+      inFlightRef.current.delete(isbn);
     }
-  }, []); // Fully stable — all external values accessed via refs
+  }, [addToast, removeToast, flashFrame]);
 
   useEffect(() => {
-    // Guard against StrictMode double-mount: only initialize once
-    if (scannerInitializedRef.current) return;
-    scannerInitializedRef.current = true;
-
-    let html5QrCode: Html5Qrcode | null = null;
     let cancelled = false;
-    const qrBoxSize = Math.min(window.innerWidth * 0.7, 280);
 
-    const startScanner = async () => {
-      // Small delay to let DOM settle (especially after StrictMode remount)
-      await new Promise(r => setTimeout(r, 100));
-      if (cancelled) return;
+    // Books use EAN-13 (Bookland) barcodes exclusively. Restricting formats
+    // here (constructor config — start() ignores it) makes decoding faster
+    // and eliminates misreads from the 16 other symbologies.
+    const scanner = new Html5Qrcode('reader', {
+      formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13],
+      useBarCodeDetectorIfSupported: true,
+      verbose: false,
+    });
+    scannerRef.current = scanner;
 
-      // Clear any leftover DOM content from previous mount
-      const readerEl = document.getElementById('reader');
-      if (readerEl) readerEl.innerHTML = '';
+    const startPromise = scanner.start(
+      { facingMode: 'environment' },
+      {
+        fps: 15,
+        // Wide box shaped for barcodes: nearly full width, short height
+        qrbox: (viewfinderWidth, viewfinderHeight) => {
+          const width = Math.min(viewfinderWidth * 0.9, 600);
+          const height = Math.min(width * 0.45, viewfinderHeight * 0.5);
+          return { width, height };
+        },
+        // Higher resolution feed makes small/curved barcodes legible
+        videoConstraints: {
+          facingMode: 'environment',
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+      },
+      (decodedText) => processBarcode(decodedText),
+      () => { }
+    );
 
-      try {
-        html5QrCode = new Html5Qrcode('reader');
-        scannerRef.current = html5QrCode;
-
-        const config = {
-          fps: 15,
-          qrbox: { width: qrBoxSize, height: qrBoxSize },
-          aspectRatio: window.innerWidth / window.innerHeight,
-          formatsToSupport: [0], // EAN_13
-        };
-
-        await html5QrCode.start(
-          { facingMode: 'environment' },
-          config,
-          (decodedText) => processBarcode(decodedText),
-          () => { }
-        );
-
-        if (cancelled) {
-          // Component unmounted during async start
-          html5QrCode.stop().catch(console.error);
-          return;
-        }
-
-        setIsInitialized(true);
-      } catch (err) {
-        console.error('Failed to start scanner:', err);
+    startPromise
+      .then(() => {
+        if (!cancelled) setIsInitialized(true);
+      })
+      .catch((err) => {
         if (!cancelled) {
+          console.error('Failed to start scanner:', err);
           addToast('⚠️ Camera access required', 'error');
         }
-      }
-    };
-
-    startScanner();
+      });
 
     return () => {
       cancelled = true;
-      if (cooldownTimeoutRef.current) clearTimeout(cooldownTimeoutRef.current);
-      if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().catch(console.error);
-      }
+      if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+      // Chain on the start promise so cleanup works even if start() is
+      // still pending (e.g. StrictMode's immediate unmount in dev)
+      startPromise
+        .then(() => scanner.stop())
+        .catch(() => { /* start failed or already stopped — nothing to clean up */ });
     };
-  }, [processBarcode, addToast]); // processBarcode is now fully stable ([] deps)
+  }, [processBarcode, addToast]); // both stable — effect runs once per mount
 
   const handleStop = useCallback(() => {
     if (scannerRef.current?.isScanning) {
@@ -233,9 +208,9 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
         {/* Visual Guides */}
         {isInitialized && (
           <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
-            {/* Scan Frame with Fixed Max Width to match Scanner Config */}
+            {/* Wide scan frame matching the barcode-shaped qrbox */}
             <div
-              className={`w-[70%] max-w-[280px] aspect-[1/1] border-2 rounded-3xl transition-colors duration-300 relative ${isScanningActive ? 'border-white/50' : 'border-emerald-500/80'
+              className={`w-[90%] max-w-[600px] aspect-[20/9] border-2 rounded-3xl transition-colors duration-300 relative ${justDetected ? 'border-emerald-500/90' : 'border-white/50'
                 }`}
             >
               {/* Corner Markers */}
@@ -245,13 +220,11 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
               <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-2xl -mb-[2px] -mr-[2px]" />
 
               {/* Pulse Scanner Line */}
-              {isScanningActive && (
-                <div className="absolute left-0 right-0 h-0.5 bg-red-500/80 shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-scan-line top-1/2" />
-              )}
+              <div className="absolute left-0 right-0 h-0.5 bg-red-500/80 shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-scan-line top-1/2" />
             </div>
 
             <p className="mt-8 text-white/80 text-sm font-medium tracking-wide">
-              {isScanningActive ? 'Align barcode within frame' : 'Processing...'}
+              {justDetected ? 'Captured!' : 'Align barcode within frame'}
             </p>
           </div>
         )}
