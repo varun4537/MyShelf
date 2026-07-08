@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import type { Book } from '../types';
-import { isAuthorized, getLibrary, kv, LIBRARY_KEY, saveLibrary } from './lib/kv';
+import { isAuthorized, getLibrary, addBook, clearLibrary } from './lib/db';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -15,30 +15,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    if (req.method === 'GET') {
-        const library = await getLibrary();
-        return res.status(200).json(library);
-    }
-
-    if (req.method === 'POST') {
-        const book = req.body as Book;
-        if (!book?.isbn) {
-            return res.status(400).json({ error: 'Invalid book data' });
+    try {
+        if (req.method === 'GET') {
+            const library = await getLibrary();
+            return res.status(200).json(library);
         }
 
-        const library = await getLibrary();
-        if (library.some(item => item.isbn === book.isbn)) {
-            return res.status(200).json({ status: 'exists' });
+        if (req.method === 'POST') {
+            const book = req.body as Book;
+            if (!book?.isbn) {
+                return res.status(400).json({ error: 'Invalid book data' });
+            }
+
+            const added = await addBook(book);
+            if (!added) {
+                return res.status(200).json({ status: 'exists' });
+            }
+            return res.status(201).json({ status: 'added' });
         }
 
-        const updated = [book, ...library];
-        await saveLibrary(updated);
-        return res.status(201).json({ status: 'added' });
-    }
-
-    if (req.method === 'DELETE') {
-        await saveLibrary([]);
-        return res.status(200).json({ status: 'cleared' });
+        if (req.method === 'DELETE') {
+            await clearLibrary();
+            return res.status(200).json({ status: 'cleared' });
+        }
+    } catch (error) {
+        console.error('Library request failed:', error);
+        return res.status(500).json({ error: 'Database error' });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });

@@ -91,10 +91,7 @@ npx vercel --prod
 - `OPENROUTER_API_KEY`
 - `APP_USER`
 - `APP_PASS`
-- `KV_URL`
-- `KV_REST_API_URL`
-- `KV_REST_API_TOKEN`
-- `KV_REST_API_READ_ONLY_TOKEN`
+- `DATABASE_URL` (added automatically when you connect Neon Postgres via Vercel Storage)
 
 ### Environment Variables
 
@@ -106,12 +103,16 @@ OPENROUTER_API_KEY=your_key_here
 APP_USER=Mybooks
 APP_PASS=quickscan123
 
-# Vercel KV / Upstash Redis credentials
-KV_URL=
-KV_REST_API_URL=
-KV_REST_API_TOKEN=
-KV_REST_API_READ_ONLY_TOKEN=
+# Neon Postgres connection string (auto-injected by the Vercel Neon integration)
+DATABASE_URL=
 ```
+
+### Database setup
+
+Storage is Neon Postgres (free tier). In the Vercel dashboard:
+1. Open your project → **Storage** → **Create Database** → **Neon** (Postgres)
+2. Connect it to this project — Vercel injects `DATABASE_URL` automatically
+3. Redeploy. The `books` table is created automatically on first use.
 
 ## 📋 Requirements
 
