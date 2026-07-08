@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import type { Book } from '../types';
-import { isAuthorized, getLibrary, addBook, clearLibrary } from './lib/db';
+import { isAuthorized, getLibrary, addBook, clearLibrary } from './lib/db.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Origin', '*');
