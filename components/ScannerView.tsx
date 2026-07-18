@@ -3,19 +3,20 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { fetchBookByISBN } from '../services/geminiService';
 import { Book } from '../types';
 import { isValidISBN } from '../utils/isbn';
-import { CheckCircle, ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
+import { findDuplicateEdition } from '../utils/duplicates';
+import { CheckCircle, ArrowLeft, AlertCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import '../scanner.css';
 
 interface ScannerViewProps {
   onStop: () => void;
   onAddBook: (book: Book) => void;
-  existingISBNs: string[];
+  existingBooks: Book[];
 }
 
 interface Toast {
   id: number;
   message: string;
-  type: 'success' | 'error' | 'loading';
+  type: 'success' | 'error' | 'warning' | 'loading';
 }
 
 // Ignore repeat decodes of the same barcode within this window
@@ -27,7 +28,7 @@ const RESCAN_COOLDOWN_MS = 4000;
  * Continuous barcode scanner: the camera never pauses between books.
  * Lookups run in the background while the user moves to the next barcode.
  */
-const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingISBNs }) => {
+const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingBooks }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [lastScannedBook, setLastScannedBook] = useState<Book | null>(null);
@@ -41,10 +42,10 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
   const inFlightRef = useRef<Set<string>>(new Set());
 
   // LIVE REFERENCES to props to keep processBarcode stable across renders
-  const existingISBNsRef = useRef(existingISBNs);
+  const existingBooksRef = useRef(existingBooks);
   useEffect(() => {
-    existingISBNsRef.current = existingISBNs;
-  }, [existingISBNs]);
+    existingBooksRef.current = existingBooks;
+  }, [existingBooks]);
 
   const onAddBookRef = useRef(onAddBook);
   useEffect(() => { onAddBookRef.current = onAddBook; }, [onAddBook]);
@@ -85,8 +86,10 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
     if (navigator.vibrate) navigator.vibrate(50);
     flashFrame();
 
-    if (existingISBNsRef.current.includes(isbn)) {
-      addToast('Already in your shelf', 'error');
+    const alreadyOwned = existingBooksRef.current.find(b => b.isbn === isbn);
+    if (alreadyOwned) {
+      addToast(`Already in your shelf: ${alreadyOwned.title}`, 'warning');
+      if (navigator.vibrate) navigator.vibrate([40, 40, 40]);
       return;
     }
 
@@ -100,8 +103,13 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
       removeToast(loadingToastId);
 
       if (book) {
+        // Same title+author under a different ISBN = likely another edition
+        const duplicate = findDuplicateEdition(book, existingBooksRef.current);
         onAddBookRef.current(book);
         setLastScannedBook(book);
+        if (duplicate) {
+          addToast(`Possible duplicate edition of "${duplicate.title}"`, 'warning');
+        }
         addToast(`Added: ${book.title}`, 'success');
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
       } else {
@@ -249,14 +257,16 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
       {/* Toast Overlay (Top Center) */}
       <div className="fixed top-24 left-0 right-0 z-50 flex flex-col items-center gap-2 pointer-events-none px-4">
         {toasts.map(toast => (
-          <div key={toast.id} className={`px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 backdrop-blur-xl animate-slide-down ${toast.type === 'error' ? 'bg-red-500/90 text-white' :
+          <div key={toast.id} className={`px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 backdrop-blur-xl animate-slide-down max-w-[92vw] ${toast.type === 'error' ? 'bg-red-500/90 text-white' :
             toast.type === 'success' ? 'bg-emerald-500/90 text-white' :
-              'bg-zinc-800/90 text-white'
+              toast.type === 'warning' ? 'bg-amber-500/90 text-white' :
+                'bg-zinc-800/90 text-white'
             }`}>
             {toast.type === 'success' && <CheckCircle className="w-4 h-4 flex-shrink-0" />}
             {toast.type === 'error' && <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+            {toast.type === 'warning' && <AlertTriangle className="w-4 h-4 flex-shrink-0" />}
             {toast.type === 'loading' && <Loader2 className="w-4 h-4 flex-shrink-0 animate-spin" />}
-            <span className="font-medium text-sm">{toast.message}</span>
+            <span className="font-medium text-sm truncate">{toast.message}</span>
           </div>
         ))}
       </div>

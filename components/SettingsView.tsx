@@ -1,9 +1,10 @@
 import React from 'react';
 import { ArrowLeft, LogOut, Library, FileJson, FileSpreadsheet, Upload, Trash2, Moon, Sun, Monitor } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
-import { Book } from '../types';
+import { Book, migrateBook } from '../types';
 import { exportToCSV, exportToJSON } from '../utils/export';
 import { clearAuthToken } from '../services/authService';
+import { importBooksRemote } from '../services/libraryService';
 
 interface SettingsViewProps {
     books: Book[];
@@ -26,12 +27,23 @@ const SettingsView: React.FC<SettingsViewProps> = ({ books, onBack, onClearData 
             try {
                 const text = await file.text();
                 const data = JSON.parse(text);
-                if (Array.isArray(data)) {
-                    localStorage.setItem('my-shelf-books', JSON.stringify(data));
-                    window.location.reload();
+                if (!Array.isArray(data)) {
+                    alert('Invalid backup file: expected a JSON array of books');
+                    return;
                 }
+
+                const booksToImport = data.map(migrateBook).filter(b => b.isbn);
+                if (booksToImport.length === 0) {
+                    alert('No books with ISBNs found in this file');
+                    return;
+                }
+
+                const { added, skipped } = await importBooksRemote(booksToImport);
+                alert(`Imported ${added} new book${added === 1 ? '' : 's'}${skipped > 0 ? ` (${skipped} already in your library)` : ''}`);
+                window.location.reload();
             } catch (err) {
-                alert('Invalid file format');
+                console.error('Import failed:', err);
+                alert('Import failed: invalid file or network error');
             }
         };
         input.click();

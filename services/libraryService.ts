@@ -39,6 +39,27 @@ export const addBookRemote = async (book: Book): Promise<void> => {
     }
 };
 
+export const importBooksRemote = async (books: Book[]): Promise<{ added: number; skipped: number }> => {
+    const response = await fetch('/api/library', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...buildAuthHeaders()
+        },
+        body: JSON.stringify(books)
+    });
+
+    if (!response.ok) {
+        if (response.status === 401) {
+            throw new Error('Unauthorized');
+        }
+        throw new Error('Failed to import books');
+    }
+
+    const data = await response.json();
+    return { added: data.added ?? 0, skipped: data.skipped ?? 0 };
+};
+
 export const updateBookRemote = async (book: Book): Promise<void> => {
     const response = await fetch(`/api/library/${book.isbn}`, {
         method: 'PUT',

@@ -146,7 +146,7 @@ const App: React.FC = () => {
           <ScannerView
             onStop={() => setView('library')}
             onAddBook={addBook}
-            existingISBNs={books.map(b => b.isbn)}
+            existingBooks={books}
           />
         );
       case 'library':

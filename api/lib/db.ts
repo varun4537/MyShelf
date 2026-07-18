@@ -76,6 +76,24 @@ export const addBook = async (book: Book): Promise<boolean> => {
 };
 
 /**
+ * Bulk-insert books, skipping ISBNs that already exist (and duplicate
+ * ISBNs within the batch). Returns the number actually inserted.
+ */
+export const addBooks = async (books: Book[]): Promise<number> => {
+    if (books.length === 0) return 0;
+    await ensureTable();
+    const rows = await getSql()`
+        INSERT INTO books (isbn, data)
+        SELECT DISTINCT ON (elem->>'isbn') elem->>'isbn', elem
+        FROM jsonb_array_elements(${JSON.stringify(books)}::jsonb) AS elem
+        WHERE COALESCE(elem->>'isbn', '') <> ''
+        ON CONFLICT (isbn) DO NOTHING
+        RETURNING isbn
+    `;
+    return rows.length;
+};
+
+/**
  * Replace a book's data by ISBN
  */
 export const updateBook = async (isbn: string, book: Book): Promise<void> => {
