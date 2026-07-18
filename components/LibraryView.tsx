@@ -4,7 +4,7 @@ import { GridIcon } from './icons/GridIcon';
 import { ListIcon } from './icons/ListIcon';
 import { SearchIcon } from './icons/SearchIcon';
 import { PlusIcon } from './icons/PlusIcon';
-import { BookOpen, Book as BookIcon, CheckCircle, Heart, Library, Edit2, Camera, BarChart3, ZoomIn } from 'lucide-react';
+import { BookOpen, Book as BookIcon, CheckCircle, Heart, Library, Edit2, Camera, BarChart3, ZoomIn, ZoomOut } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import BookCard from './BookCard';
 import BookListItem from './BookListItem';
@@ -23,6 +23,12 @@ interface LibraryViewProps {
 
 type ViewMode = 'grid' | 'list';
 type SortKey = 'dateAdded' | 'title' | 'author' | 'rating';
+
+// Cover size presets (minimum column width in px). The grid auto-fills
+// columns of at least this width, so the column count adapts to the
+// window: ~2 on phones, 6-8 on desktops. Index 0 = largest covers.
+const COVER_SIZES = [220, 185, 155, 130, 110, 92];
+const DEFAULT_SIZE_LEVEL = 2;
 
 const FILTER_OPTIONS: { value: ReadingStatus | 'all' | 'favorites'; label: string; icon: React.FC<{ className?: string }> }[] = [
   { value: 'all', label: 'All', icon: Library },
@@ -51,8 +57,8 @@ const LibraryView: React.FC<LibraryViewProps> = ({
   const [showFabMenu, setShowFabMenu] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
 
-  // Dynamic Grid State
-  const [gridCols, setGridCols] = useState(2);
+  // Dynamic Grid State: index into COVER_SIZES (lower = bigger covers)
+  const [sizeLevel, setSizeLevel] = useState(DEFAULT_SIZE_LEVEL);
   const [isPinching, setIsPinching] = useState(false);
   const initialPinchDistance = useRef<number | null>(null);
   const lastUpdateRef = useRef<number>(0);
@@ -152,12 +158,12 @@ const LibraryView: React.FC<LibraryViewProps> = ({
 
       // Debounce updates to avoid flickering, but allow smooth enough transitions
       if (now - lastUpdateRef.current > 300) {
-        if (delta > 60) { // Pinch Out (Zoom In) -> Fewer Columns
-          setGridCols(prev => Math.max(1, prev - 1));
+        if (delta > 60) { // Pinch Out (Zoom In) -> Bigger covers
+          setSizeLevel(prev => Math.max(0, prev - 1));
           initialPinchDistance.current = dist; // Reset base
           lastUpdateRef.current = now;
-        } else if (delta < -60) { // Pinch In (Zoom Out) -> More Columns
-          setGridCols(prev => Math.min(6, prev + 1));
+        } else if (delta < -60) { // Pinch In (Zoom Out) -> Smaller covers
+          setSizeLevel(prev => Math.min(COVER_SIZES.length - 1, prev + 1));
           initialPinchDistance.current = dist; // Reset base
           lastUpdateRef.current = now;
         }
@@ -169,9 +175,6 @@ const LibraryView: React.FC<LibraryViewProps> = ({
     setIsPinching(false);
     initialPinchDistance.current = null;
   };
-
-  // Determine grid class dynamically
-  const gridClass = `grid gap-4 grid-cols-${gridCols}`;
 
   return (
     <div
@@ -187,7 +190,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({
           background: 'var(--color-bg)',
           borderColor: 'var(--color-border)'
         }}>
-        <div className="px-4 pt-6 pb-4">
+        <div className="px-4 pt-6 pb-4 max-w-7xl mx-auto">
           {/* Title & Stats Row */}
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -296,24 +299,46 @@ const LibraryView: React.FC<LibraryViewProps> = ({
               ))}
             </div>
 
-            {/* Grid Size Indicator (Helper) */}
+            {/* Grid Size Controls */}
             {viewMode === 'grid' && (
-              <span className="text-[10px] opacity-50 whitespace-nowrap px-4 animate-fade-in" style={{ color: 'var(--color-text-secondary)' }}>
-                Pinch to resize ({gridCols})
-              </span>
+              <>
+                {/* Desktop: zoom buttons */}
+                <div className="hidden md:flex items-center gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => setSizeLevel(prev => Math.min(COVER_SIZES.length - 1, prev + 1))}
+                    disabled={sizeLevel === COVER_SIZES.length - 1}
+                    className="p-1.5 glass-button rounded-full disabled:opacity-30 transition"
+                    title="Smaller covers"
+                  >
+                    <ZoomOut className="w-4 h-4" style={{ color: 'var(--color-text-secondary)' }} />
+                  </button>
+                  <button
+                    onClick={() => setSizeLevel(prev => Math.max(0, prev - 1))}
+                    disabled={sizeLevel === 0}
+                    className="p-1.5 glass-button rounded-full disabled:opacity-30 transition"
+                    title="Larger covers"
+                  >
+                    <ZoomIn className="w-4 h-4" style={{ color: 'var(--color-text-secondary)' }} />
+                  </button>
+                </div>
+                {/* Touch: pinch hint */}
+                <span className="md:hidden text-[10px] opacity-50 whitespace-nowrap px-4 animate-fade-in" style={{ color: 'var(--color-text-secondary)' }}>
+                  Pinch to resize
+                </span>
+              </>
             )}
           </div>
         </div>
       </header>
 
       {/* Book Grid/List */}
-      <main className="px-4 pt-6">
+      <main className="px-4 pt-6 max-w-7xl mx-auto">
         {filteredAndSortedBooks.length > 0 ? (
           viewMode === 'grid' ? (
             <div
-              className="grid gap-4 transition-all duration-300 ease-in-out"
+              className="grid gap-4 md:gap-6 transition-all duration-300 ease-in-out"
               style={{
-                gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`
+                gridTemplateColumns: `repeat(auto-fill, minmax(min(${COVER_SIZES[sizeLevel]}px, 100%), 1fr))`
               }}
             >
               {filteredAndSortedBooks.map(book => (
