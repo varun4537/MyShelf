@@ -1,5 +1,7 @@
 import React, { useMemo } from 'react';
-import { Book } from '../types';
+import { ArrowLeft, BarChart3, Star } from 'lucide-react';
+import { Book, ReadingStatus } from '../types';
+import { STATUS_META, StatusIcon } from './StatusIcon';
 
 interface StatsViewProps {
     books: Book[];
@@ -66,16 +68,14 @@ const StatsView: React.FC<StatsViewProps> = ({ books, onBack }) => {
                     onClick={onBack}
                     className="w-10 h-10 glass-button rounded-full flex items-center justify-center"
                 >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--color-text)' }}>
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
+                    <ArrowLeft className="w-5 h-5" style={{ color: 'var(--color-text)' }} />
                 </button>
                 <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>Statistics</h1>
             </div>
 
             {books.length === 0 ? (
                 <div className="text-center py-20">
-                    <div className="text-6xl mb-4">📊</div>
+                    <BarChart3 className="w-16 h-16 mx-auto mb-4 opacity-50" style={{ color: 'var(--color-primary)' }} />
                     <h2 className="text-xl font-semibold" style={{ color: 'var(--color-text)' }}>No Data Yet</h2>
                     <p className="mt-2" style={{ color: 'var(--color-text-secondary)' }}>
                         Add some books to see your reading statistics
@@ -114,22 +114,15 @@ const StatsView: React.FC<StatsViewProps> = ({ books, onBack }) => {
 
                             {/* Status Breakdown */}
                             <div className="flex-grow space-y-2">
-                                <div className="flex justify-between">
-                                    <span style={{ color: 'var(--color-text-secondary)' }}>📚 Unread</span>
-                                    <span className="font-medium" style={{ color: 'var(--color-text)' }}>{stats.byStatus.unread}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span style={{ color: 'var(--color-text-secondary)' }}>📖 Reading</span>
-                                    <span className="font-medium" style={{ color: 'var(--color-text)' }}>{stats.byStatus.reading}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span style={{ color: 'var(--color-text-secondary)' }}>✅ Read</span>
-                                    <span className="font-medium" style={{ color: 'var(--color-text)' }}>{stats.byStatus.read}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span style={{ color: 'var(--color-text-secondary)' }}>🎁 Wishlist</span>
-                                    <span className="font-medium" style={{ color: 'var(--color-text)' }}>{stats.byStatus.wishlist}</span>
-                                </div>
+                                {(Object.keys(STATUS_META) as ReadingStatus[]).map(status => (
+                                    <div key={status} className="flex justify-between items-center">
+                                        <span className="flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
+                                            <StatusIcon status={status} className="w-4 h-4" />
+                                            {STATUS_META[status].label}
+                                        </span>
+                                        <span className="font-medium" style={{ color: 'var(--color-text)' }}>{stats.byStatus[status]}</span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </section>
@@ -201,7 +194,10 @@ const StatsView: React.FC<StatsViewProps> = ({ books, onBack }) => {
                                                 background: count > 0 ? 'var(--color-primary)' : 'var(--color-border)'
                                             }}
                                         />
-                                        <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{'⭐'.repeat(star)}</span>
+                                        <span className="text-xs flex items-center gap-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                                            {star}
+                                            <Star className="w-3 h-3" fill="#fbbf24" style={{ color: '#fbbf24' }} strokeWidth={1.5} />
+                                        </span>
                                     </div>
                                 );
                             })}

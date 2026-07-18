@@ -1,6 +1,5 @@
 import React from 'react';
-import { BookIcon } from './icons/BookIcon';
-import { Camera, Library } from 'lucide-react';
+import { Camera, Library, LibraryBig } from 'lucide-react';
 
 interface SplashScreenProps {
   onStart: () => void;
@@ -11,7 +10,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onStart, onLibrary }) => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center" style={{ background: 'var(--color-bg)' }}>
       <div className="mb-8">
-        <BookIcon className="w-24 h-24" style={{ color: 'var(--color-primary)' }} />
+        <LibraryBig className="w-24 h-24" strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
       </div>
       <h1 className="text-5xl font-bold mb-2" style={{ color: 'var(--color-text)' }}>MyShelf</h1>
       <p className="text-lg mb-12 max-w-sm" style={{ color: 'var(--color-text-secondary)' }}>

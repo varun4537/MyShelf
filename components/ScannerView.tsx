@@ -3,7 +3,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { fetchBookByISBN } from '../services/geminiService';
 import { Book } from '../types';
 import { isValidISBN } from '../utils/isbn';
-import { CheckCircle, ArrowLeft } from 'lucide-react';
+import { CheckCircle, ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
 import '../scanner.css';
 
 interface ScannerViewProps {
@@ -86,7 +86,7 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
     flashFrame();
 
     if (existingISBNsRef.current.includes(isbn)) {
-      addToast('📚 Already in your shelf', 'error');
+      addToast('Already in your shelf', 'error');
       return;
     }
 
@@ -94,7 +94,7 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
     inFlightRef.current.add(isbn);
 
     // Lookup runs in the background — scanning continues uninterrupted
-    const loadingToastId = addToast(`🔍 Finding: ${isbn}`, 'loading');
+    const loadingToastId = addToast(`Finding: ${isbn}`, 'loading');
     try {
       const book = await fetchBookByISBN(isbn);
       removeToast(loadingToastId);
@@ -102,16 +102,16 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
       if (book) {
         onAddBookRef.current(book);
         setLastScannedBook(book);
-        addToast(`✅ Added: ${book.title}`, 'success');
+        addToast(`Added: ${book.title}`, 'success');
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
       } else {
-        addToast('❌ Book not found', 'error');
+        addToast('Book not found', 'error');
         recentScansRef.current.delete(isbn); // allow immediate retry
       }
     } catch (error) {
       removeToast(loadingToastId);
       console.error('Error processing barcode:', error);
-      addToast('❌ Error looking up book', 'error');
+      addToast('Error looking up book', 'error');
       recentScansRef.current.delete(isbn); // allow immediate retry
     } finally {
       inFlightRef.current.delete(isbn);
@@ -159,7 +159,7 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
       .catch((err) => {
         if (!cancelled) {
           console.error('Failed to start scanner:', err);
-          addToast('⚠️ Camera access required', 'error');
+          addToast('Camera access required', 'error');
         }
       });
 
@@ -253,7 +253,9 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onStop, onAddBook, existingIS
             toast.type === 'success' ? 'bg-emerald-500/90 text-white' :
               'bg-zinc-800/90 text-white'
             }`}>
-            {toast.type === 'success' && <CheckCircle className="w-4 h-4" />}
+            {toast.type === 'success' && <CheckCircle className="w-4 h-4 flex-shrink-0" />}
+            {toast.type === 'error' && <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+            {toast.type === 'loading' && <Loader2 className="w-4 h-4 flex-shrink-0 animate-spin" />}
             <span className="font-medium text-sm">{toast.message}</span>
           </div>
         ))}

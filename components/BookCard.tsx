@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Heart, Trash2 } from 'lucide-react';
-import { Book, ReadingStatus } from '../types';
+import { Book } from '../types';
+import { StatusIcon, RatingStars } from './StatusIcon';
 
 interface BookCardProps {
   book: Book;
@@ -9,13 +10,6 @@ interface BookCardProps {
   onUpdate: (book: Book) => void;
   onClick: () => void;
 }
-
-const STATUS_EMOJI: Record<ReadingStatus, string> = {
-  unread: '📚',
-  reading: '📖',
-  read: '✅',
-  wishlist: '🎁',
-};
 
 const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate, onClick }) => {
   const [imageError, setImageError] = React.useState(false);
@@ -59,8 +53,8 @@ const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate, onClick }
 
         {/* Status Badge (Top Left) */}
         <div className="absolute top-2 left-2">
-          <div className="bg-black/40 backdrop-blur-md px-2 py-1 rounded-md text-xs font-medium text-white shadow-sm border border-white/10">
-            {STATUS_EMOJI[book.readingStatus]}
+          <div className="bg-black/50 backdrop-blur-md p-1.5 rounded-full shadow-sm border border-white/10 flex items-center justify-center">
+            <StatusIcon status={book.readingStatus} className="w-3.5 h-3.5" />
           </div>
         </div>
 
@@ -103,12 +97,8 @@ const BookCard: React.FC<BookCardProps> = ({ book, onDelete, onUpdate, onClick }
       <div className="mt-3 px-1">
         {/* Rating Stars */}
         {book.rating ? (
-          <div className="flex items-center gap-0.5 mb-1.5">
-            {[1, 2, 3, 4, 5].map(star => (
-              <span key={star} className="text-xs">
-                {star <= book.rating! ? '⭐' : '☆'}
-              </span>
-            ))}
+          <div className="mb-1.5">
+            <RatingStars rating={book.rating} className="w-3 h-3" />
           </div>
         ) : (
           <div className="h-4 mb-1.5" />

@@ -1,4 +1,5 @@
 import React from 'react';
+import { ArrowLeft, LogOut, Library, FileJson, FileSpreadsheet, Upload, Trash2, Moon, Sun, Monitor } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { Book } from '../types';
 import { exportToCSV, exportToJSON } from '../utils/export';
@@ -44,9 +45,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ books, onBack, onClearData 
                     onClick={onBack}
                     className="w-10 h-10 glass-button rounded-full flex items-center justify-center"
                 >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--color-text)' }}>
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
+                    <ArrowLeft className="w-5 h-5" style={{ color: 'var(--color-text)' }} />
                 </button>
                 <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>Settings</h1>
                 <button
@@ -57,10 +56,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ books, onBack, onClearData 
                   className="ml-auto w-10 h-10 glass-button rounded-full flex items-center justify-center hover:bg-red-500/20"
                   title="Logout"
                 >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--color-text)' }}>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 16a2 2 0 001.732-1A2 2 0 0118 13.732V12a2 2 0 01-3.732-1M7 16a2 2 0 11-4 0m4 0a2 2 0 10-4 0" />
-                  </svg>
+                  <LogOut className="w-5 h-5" style={{ color: 'var(--color-text)' }} />
                 </button>
             </div>
 
@@ -73,8 +69,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({ books, onBack, onClearData 
                     <div className="p-4 flex items-center justify-between border-b" style={{ borderColor: 'var(--color-border)' }}>
                         <div>
                             <p className="font-medium" style={{ color: 'var(--color-text)' }}>Theme</p>
-                            <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                                Currently: {resolvedTheme === 'dark' ? '🌙 Dark' : '☀️ Light'}
+                            <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--color-text-secondary)' }}>
+                                Currently: {resolvedTheme === 'dark'
+                                    ? <><Moon className="w-3.5 h-3.5" /> Dark</>
+                                    : <><Sun className="w-3.5 h-3.5" /> Light</>}
                             </p>
                         </div>
                     </div>
@@ -83,15 +81,15 @@ const SettingsView: React.FC<SettingsViewProps> = ({ books, onBack, onClearData 
                             <button
                                 key={t}
                                 onClick={() => setTheme(t)}
-                                className={`flex-1 py-3 rounded-xl font-medium transition-all ${theme === t
+                                className={`flex-1 py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${theme === t
                                         ? 'btn-primary'
                                         : 'glass-button'
                                     }`}
                                 style={{ color: theme === t ? 'white' : 'var(--color-text)' }}
                             >
-                                {t === 'dark' && '🌙 Dark'}
-                                {t === 'light' && '☀️ Light'}
-                                {t === 'system' && '💻 System'}
+                                {t === 'dark' && <><Moon className="w-4 h-4" /> Dark</>}
+                                {t === 'light' && <><Sun className="w-4 h-4" /> Light</>}
+                                {t === 'system' && <><Monitor className="w-4 h-4" /> System</>}
                             </button>
                         ))}
                     </div>
@@ -105,8 +103,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({ books, onBack, onClearData 
                 </h2>
                 <div className="surface rounded-2xl overflow-hidden">
                     <div className="p-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
-                        <p className="font-medium" style={{ color: 'var(--color-text)' }}>
-                            📚 {books.length} books in your library
+                        <p className="font-medium flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
+                            <Library className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
+                            {books.length} books in your library
                         </p>
                     </div>
 
@@ -115,7 +114,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ books, onBack, onClearData 
                         className="w-full p-4 flex items-center gap-3 border-b hover:bg-[var(--color-surface-hover)] transition"
                         style={{ borderColor: 'var(--color-border)' }}
                     >
-                        <span className="text-xl">📄</span>
+                        <FileJson className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} />
                         <div className="text-left">
                             <p className="font-medium" style={{ color: 'var(--color-text)' }}>Export as JSON</p>
                             <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Full backup with all data</p>
@@ -127,7 +126,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ books, onBack, onClearData 
                         className="w-full p-4 flex items-center gap-3 border-b hover:bg-[var(--color-surface-hover)] transition"
                         style={{ borderColor: 'var(--color-border)' }}
                     >
-                        <span className="text-xl">📊</span>
+                        <FileSpreadsheet className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} />
                         <div className="text-left">
                             <p className="font-medium" style={{ color: 'var(--color-text)' }}>Export as CSV</p>
                             <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Spreadsheet compatible</p>
@@ -139,7 +138,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ books, onBack, onClearData 
                         className="w-full p-4 flex items-center gap-3 border-b hover:bg-[var(--color-surface-hover)] transition"
                         style={{ borderColor: 'var(--color-border)' }}
                     >
-                        <span className="text-xl">📥</span>
+                        <Upload className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} />
                         <div className="text-left">
                             <p className="font-medium" style={{ color: 'var(--color-text)' }}>Import Library</p>
                             <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Restore from JSON backup</p>
@@ -150,7 +149,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ books, onBack, onClearData 
                         onClick={() => setShowClearConfirm(true)}
                         className="w-full p-4 flex items-center gap-3 hover:bg-red-500/10 transition"
                     >
-                        <span className="text-xl">🗑️</span>
+                        <Trash2 className="w-5 h-5 text-red-500" />
                         <div className="text-left">
                             <p className="font-medium text-red-500">Clear All Data</p>
                             <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Delete all books</p>

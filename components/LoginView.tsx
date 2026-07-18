@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookIcon } from './icons/BookIcon';
+import { LibraryBig } from 'lucide-react';
 
 interface LoginViewProps {
     onLogin: (username: string, password: string) => void;
@@ -20,7 +20,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, isLoading, errorMessage 
         <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{ background: 'var(--color-bg)' }}>
             <div className="w-full max-w-sm surface rounded-2xl p-6">
                 <div className="flex flex-col items-center text-center">
-                    <BookIcon className="w-16 h-16" style={{ color: 'var(--color-primary)' }} />
+                    <LibraryBig className="w-16 h-16" strokeWidth={1.5} style={{ color: 'var(--color-primary)' }} />
                     <h1 className="text-3xl font-bold mt-4" style={{ color: 'var(--color-text)' }}>MyShelf</h1>
                     <p className="text-sm mt-2" style={{ color: 'var(--color-text-secondary)' }}>
                         Sign in to scan and build the shared library.

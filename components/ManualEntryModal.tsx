@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { X, Search, PenLine } from 'lucide-react';
 import { Book, createBook } from '../types';
 import { fetchBookByISBN } from '../services/geminiService';
 
@@ -114,7 +115,7 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
                         className="w-8 h-8 glass rounded-full flex items-center justify-center"
                         style={{ color: 'var(--color-text-secondary)' }}
                     >
-                        ✕
+                        <X className="w-4 h-4" />
                     </button>
                 </div>
 
@@ -129,7 +130,7 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
                             borderColor: mode === 'search' ? 'var(--color-primary)' : 'transparent'
                         }}
                     >
-                        🔍 Search by ISBN
+                        <span className="flex items-center justify-center gap-2"><Search className="w-4 h-4" /> Search by ISBN</span>
                     </button>
                     <button
                         onClick={() => setMode('manual')}
@@ -140,7 +141,7 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({
                             borderColor: mode === 'manual' ? 'var(--color-primary)' : 'transparent'
                         }}
                     >
-                        ✏️ Enter Manually
+                        <span className="flex items-center justify-center gap-2"><PenLine className="w-4 h-4" /> Enter Manually</span>
                     </button>
                 </div>
 
