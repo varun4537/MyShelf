@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Book, ReadingStatus } from '../types';
 import { BookOpen, Book as BookIcon, CheckCircle, Heart, Library, Edit2, Camera, BarChart3, ZoomIn, ZoomOut, LayoutGrid, List, Search, Plus, Settings } from 'lucide-react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useShakeDetector, useMotionPermissionOnFirstGesture } from '../hooks/useShakeDetector';
 import BookCard from './BookCard';
 import BookListItem from './BookListItem';
 import BookDetailView from './BookDetailView';
@@ -25,6 +26,9 @@ type SortKey = 'dateAdded' | 'title' | 'author' | 'rating';
 // window: ~2 on phones, 6-8 on desktops. Index 0 = largest covers.
 const COVER_SIZES = [220, 185, 155, 130, 110, 92];
 const DEFAULT_SIZE_LEVEL = 2;
+
+// How long books stay on the floor before climbing back to their shelves
+const SHAKE_RECOVER_MS = 1600;
 
 const FILTER_OPTIONS: { value: ReadingStatus | 'all' | 'favorites'; label: string; icon: React.FC<{ className?: string }> }[] = [
   { value: 'all', label: 'All', icon: Library },
@@ -58,6 +62,12 @@ const LibraryView: React.FC<LibraryViewProps> = ({
   const [isPinching, setIsPinching] = useState(false);
   const initialPinchDistance = useRef<number | null>(null);
   const lastUpdateRef = useRef<number>(0);
+
+  // Shake-to-topple easter egg: bumped on each shake so the fall gets
+  // fresh randomness every time
+  const [shakeCount, setShakeCount] = useState(0);
+  const [booksFalling, setBooksFalling] = useState(false);
+  const recoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Stats
   const stats = useMemo(() => ({
@@ -120,6 +130,40 @@ const LibraryView: React.FC<LibraryViewProps> = ({
       return 0;
     });
   }, [books, searchTerm, sortKey, sortAsc, statusFilter]);
+
+  // --- Shake to topple the shelves ---------------------------------
+  const isModalOpen = selectedBook !== null || showManualEntry;
+
+  useMotionPermissionOnFirstGesture(viewMode === 'grid');
+
+  const handleShake = React.useCallback(() => {
+    setShakeCount(c => c + 1);
+    setBooksFalling(true);
+    if (navigator.vibrate) navigator.vibrate([30, 60, 120]);
+
+    if (recoverTimeoutRef.current) clearTimeout(recoverTimeoutRef.current);
+    recoverTimeoutRef.current = setTimeout(() => setBooksFalling(false), SHAKE_RECOVER_MS);
+  }, []);
+
+  useShakeDetector(handleShake, viewMode === 'grid' && !isModalOpen && books.length > 0);
+
+  useEffect(() => () => {
+    if (recoverTimeoutRef.current) clearTimeout(recoverTimeoutRef.current);
+  }, []);
+
+  // Per-book tumble parameters, re-rolled on every shake so no two
+  // topples look alike. Indexed by position in the rendered grid.
+  const fallParams = useMemo(() => {
+    const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+    return filteredAndSortedBooks.map(() => ({
+      y: viewportHeight * (0.85 + Math.random() * 0.5),
+      x: (Math.random() - 0.5) * 140,
+      rotate: (Math.random() - 0.5) * 150,
+      duration: 0.75 + Math.random() * 0.45,
+      delay: Math.random() * 0.22,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shakeCount, filteredAndSortedBooks.length]);
 
   const handleSortChange = (key: SortKey) => {
     if (key === sortKey) {
@@ -325,7 +369,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({
       </header>
 
       {/* Book Grid/List */}
-      <main className="px-4 pt-6 max-w-7xl mx-auto">
+      <main className={`px-4 pt-6 max-w-7xl mx-auto ${booksFalling ? 'overflow-hidden' : ''}`}>
         {filteredAndSortedBooks.length > 0 ? (
           viewMode === 'grid' ? (
             <div
@@ -334,15 +378,30 @@ const LibraryView: React.FC<LibraryViewProps> = ({
                 gridTemplateColumns: `repeat(auto-fill, minmax(min(${COVER_SIZES[sizeLevel]}px, 100%), 1fr))`
               }}
             >
-              {filteredAndSortedBooks.map(book => (
-                <BookCard
-                  key={book.isbn}
-                  book={book}
-                  onDelete={onDeleteBook}
-                  onUpdate={onUpdateBook}
-                  onClick={() => setSelectedBook(book)}
-                />
-              ))}
+              {filteredAndSortedBooks.map((book, index) => {
+                const fall = fallParams[index];
+                return (
+                  <motion.div
+                    key={book.isbn}
+                    animate={booksFalling && fall
+                      ? { y: fall.y, x: fall.x, rotate: fall.rotate }
+                      : { y: 0, x: 0, rotate: 0 }}
+                    transition={booksFalling && fall
+                      // Falling: ease-in to fake gravity accelerating
+                      ? { duration: fall.duration, delay: fall.delay, ease: [0.45, 0, 0.9, 0.55] }
+                      // Recovering: springy hop back onto the shelf
+                      : { type: 'spring', stiffness: 140, damping: 15, delay: index * 0.02 }}
+                    style={{ pointerEvents: booksFalling ? 'none' : 'auto' }}
+                  >
+                    <BookCard
+                      book={book}
+                      onDelete={onDeleteBook}
+                      onUpdate={onUpdateBook}
+                      onClick={() => setSelectedBook(book)}
+                    />
+                  </motion.div>
+                );
+              })}
             </div>
           ) : (
             <div className="space-y-3">
